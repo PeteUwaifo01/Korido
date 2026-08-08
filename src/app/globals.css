@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Korido design tokens — source: korido.jsx prototype */
+:root {
+  --ink: #0A3B2E;
+  --ink-soft: #11503F;
+  --paper: #FBFAF7;
+  --mango: #F5B301;
+  --leaf: #1E7A5A;
+  --line: #E5E1D8;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-mango: var(--mango);
+  --color-leaf: var(--leaf);
+  --color-line: var(--line);
+  --font-display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.display { font-family: var(--font-display); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+input:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 3px solid var(--mango);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
