@@ -2,10 +2,8 @@ import type { Corridor } from "./types";
 
 // Shared bits for the scraped adapters (spec §4: "scheduled scrape of public
 // price calculators — respect robots/ToS posture; low frequency; identifiable
-// UA"). One honest User-Agent with contact details across every provider we
-// call, so anyone reading their logs can find us and ask us to stop.
-export const KORIDO_UA =
-  "KoridoBot/1.0 (+https://korido.app; rate comparison; contact: ops@korido.app)";
+// UA"). The UA itself lives in one place for the whole app — see user-agent.ts.
+export { KORIDO_UA } from "../user-agent";
 
 /**
  * Destination ISO country for a corridor. Providers key their calculators by

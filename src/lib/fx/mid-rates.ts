@@ -14,8 +14,9 @@
 //
 // This module reads prices. It moves no money and holds no credentials.
 
+import { KORIDO_UA as UA } from "../user-agent";
+
 const ENDPOINT = "https://open.er-api.com/v6/latest/USD";
-const UA = "KoridoBot/1.0 (+https://korido.app; rate comparison; contact: ops@korido.app)";
 
 // The source publishes daily. If its own "last update" is older than this, the
 // feed itself has gone stale and we store nothing — a stale mid-market rate
