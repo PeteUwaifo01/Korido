@@ -1,0 +1,28 @@
+name: Collect mid-market rates
+
+# Spec §4 cadence: mid-market rate every 15 min from an open FX source.
+# GitHub Actions drives it (Vercel Hobby crons are daily-only) by calling the
+# deployed endpoint, which holds the CRON_SECRET guard.
+#
+# Two things Peter should know before this runs in anger:
+#   1. Actions minutes — 96 runs/day ≈ 2,880 billed minutes/month (runs are
+#      seconds long but bill rounded up to the minute). That is over the 2,000
+#      free minutes a PRIVATE repo gets. On a PUBLIC repo, Actions is free and
+#      unmetered. Public repo, or a coarser schedule, keeps this at $0.
+#   2. The source publishes about once a day, so most polls re-observe the same
+#      number. Polling is still honest — each row records what the source said
+#      when we looked — but hourly would lose nothing today.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call mid-rate collection endpoint
+        run: |
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/collect-mid-rates" | head -c 4000
