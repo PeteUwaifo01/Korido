@@ -67,6 +67,29 @@
   amount`. Away from $200 the board says plainly that figures are estimates.
   Per-amount collection is a possible follow-up if it proves to matter.
 
+**Free-tier stack audit — every service checked 2026-08-08, don't re-open**
+Checked each one for a *terms* problem (can't be fixed by being frugal) versus a
+*capacity* problem (manageable, and far off):
+
+| Service | Commercial on free tier? | Binding limit | Our actual need | Next tier |
+|---|---|---|---|---|
+| Supabase | **Yes** — no restriction in the ToS or pricing page | 500 MB DB; free projects pause after 7 days of **database inactivity** | ~150 MB/yr (see below); collectors write every 15 min so it never idles | Pro $25/mo = $300/yr |
+| Resend | **Yes** — free tier is meant for production | **100 emails/day**, not the 3,000/mo — this is the real cap | Day-90 target is ≥50 subscribers; one rate spike could exceed 100/day | Pro $20/mo = $240/yr |
+| GitHub | Yes | 2,000 Actions min/mo on **private** repos | ~3,840 min/mo at current cadence | public repo = unmetered |
+| Cloudflare Workers | Yes | 10 ms CPU per request | one small SSR page | $5/mo = $60/yr |
+| Vercel Hobby | **No — prohibited** | n/a | n/a | Pro $240/yr |
+| Netlify Free | Yes | 15 credits per deploy of 300/mo | ~20 deploys/mo, then all sites pause | Personal $108/yr |
+
+**Supabase storage math:** 4 adapters × 3 corridors = 12 quote rows per round,
+~32 rounds/day ≈ 384 rows/day ≈ 140k rows/yr. The `raw` jsonb audit payload
+dominates at roughly 1 KB/row → **~150 MB/year**, so ~3 years inside 500 MB.
+That clears the 90-day trial and §10's "6+ months of quotes" trigger. If it ever
+tightens, drop `raw` for rows past a retention window — its audit value decays.
+
+**Resend's daily cap is a design constraint, not just a number.** The §6 alert
+dispatcher must batch and carry over across days rather than firing every
+matching alert at once, or a rate spike silently drops mail past #100.
+
 **Hosting — researched to a conclusion 2026-08-08, don't re-open**
 The spec's "Vercel free tier, $0/month" assumption does not survive their terms.
 Full comparison, so this is settled once:
