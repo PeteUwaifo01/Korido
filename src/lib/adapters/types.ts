@@ -14,6 +14,7 @@ export type AdapterResult =
       fee_flat: number;  // observed total fee for the quoted amount, USD
       fee_pct: number;   // percentage component when the provider exposes one
       raw: unknown;      // full provider payload, stored in quotes.raw for audit
+      pay_in?: string | null; // funding method the quote assumes, when the provider exposes one
     }
   | {
       available: false;

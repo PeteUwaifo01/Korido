@@ -21,6 +21,23 @@ interface WisePaymentOption {
   sourceAmount?: number;
 }
 
+// Pay-in methods a US consumer sender can actually use. Business-card and
+// European-card options appear in the payload but are not routes our audience
+// takes, so they must not win the "cheapest" contest by accident.
+const CONSUMER_PAY_INS = new Set([
+  "BANK_TRANSFER",           // US wire / ACH
+  "DIRECT_DEBIT",
+  "DEBIT",
+  "VISA_DEBIT_OR_PREPAID",
+  "MC_DEBIT_OR_PREPAID",
+  "MAESTRO",
+  "CARD",
+  "CREDIT",
+  "VISA_CREDIT",
+  "MC_CREDIT",
+  "APPLE_PAY",
+]);
+
 interface WiseQuoteResponse {
   rate?: number;
   sourceAmount?: number;
@@ -28,16 +45,33 @@ interface WiseQuoteResponse {
 }
 
 /**
- * Picks the payment option a comparison should show: cheapest enabled
- * bank-transfer-in option (card pay-in carries a higher fee and would
- * overstate Wise's cost vs how remitters typically pay).
+ * Picks the payment option a comparison should show: the cheapest *enabled*
+ * consumer pay-in method.
+ *
+ * Session 2 correction — the earlier rule preferred `payIn: "BANK_TRANSFER"`
+ * on the assumption that card pay-in is always dearer. Live payloads disprove
+ * that on these corridors: for USD→NGN at $200, BANK_TRANSFER (a US wire) cost
+ * $8.12 while DEBIT cost $4.47. Pinning to the wire overstated Wise's cost by
+ * ~45% and would have mis-ranked it against zero-fee providers. Accuracy is a
+ * compliance control (spec §4), so we quote the best price a US consumer can
+ * actually get, and record which method that was in `raw` for audit.
+ *
+ * Ties break toward BANK_TRANSFER so the choice is deterministic across runs.
  */
 function pickOption(options: WisePaymentOption[]): WisePaymentOption | null {
-  const enabled = options.filter((o) => !o.disabled && typeof o.fee?.total === "number");
+  const enabled = options.filter(
+    (o) =>
+      !o.disabled &&
+      typeof o.fee?.total === "number" &&
+      typeof o.payIn === "string" &&
+      CONSUMER_PAY_INS.has(o.payIn)
+  );
   if (enabled.length === 0) return null;
-  const bank = enabled.filter((o) => o.payIn === "BANK_TRANSFER");
-  const pool = bank.length > 0 ? bank : enabled;
-  return pool.reduce((best, o) => (o.fee!.total! < best.fee!.total! ? o : best));
+  return enabled.reduce((best, o) => {
+    if (o.fee!.total! < best.fee!.total!) return o;
+    if (o.fee!.total! === best.fee!.total! && o.payIn === "BANK_TRANSFER") return o;
+    return best;
+  });
 }
 
 export const wiseAdapter: QuoteAdapter = {
@@ -95,6 +129,7 @@ export const wiseAdapter: QuoteAdapter = {
         chosen: { payIn: option.payIn, payOut: option.payOut, fee: option.fee, targetAmount: option.targetAmount },
         optionCount: data.paymentOptions?.length ?? 0,
       },
+      pay_in: option.payIn ?? null,
     };
   },
 };

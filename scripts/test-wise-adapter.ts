@@ -13,6 +13,21 @@ const fixture = {
   ],
 };
 
+// Shape observed live on 2026-08-08 for USD→NGN: the BANK_TRANSFER pay-in is a
+// US wire and is *dearer* than debit. Business/European card options are present
+// but are not routes our audience takes.
+const wireDearerFixture = {
+  rate: 1388.61,
+  sourceAmount: 200,
+  paymentOptions: [
+    { disabled: false, payIn: "BANK_TRANSFER", payOut: "BANK_TRANSFER", fee: { total: 8.12 }, targetAmount: 266446.49 },
+    { disabled: false, payIn: "DEBIT", payOut: "BANK_TRANSFER", fee: { total: 4.47 }, targetAmount: 271514.91 },
+    { disabled: false, payIn: "VISA_BUSINESS_DEBIT", payOut: "BANK_TRANSFER", fee: { total: 3.09 }, targetAmount: 272000 },
+    { disabled: false, payIn: "INT_DEBIT_WITH_EUROPEAN_CARD", payOut: "BANK_TRANSFER", fee: { total: 2.5 }, targetAmount: 273000 },
+    { disabled: true, payIn: "BALANCE", payOut: "BANK_TRANSFER", fee: { total: 1.73 }, targetAmount: 275319.7 },
+  ],
+};
+
 function mockFetch(status: number, body: unknown): typeof fetch {
   return (async () =>
     new Response(JSON.stringify(body), {
@@ -39,9 +54,20 @@ async function offline() {
   check("returns available on 200", ok.available === true);
   if (ok.available) {
     check("fx_rate parsed", ok.fx_rate === 129.85);
-    check("picks cheapest enabled BANK_TRANSFER pay-in (not card, not disabled)", ok.fee_flat === 2.31, ok);
+    check("picks cheapest enabled consumer pay-in (not card, not disabled)", ok.fee_flat === 2.31, ok);
     check("fee_pct folded into flat", ok.fee_pct === 0);
+    check("records which pay-in the quote assumes", ok.pay_in === "BANK_TRANSFER", ok.pay_in);
   }
+
+  const wireDearer = await wiseAdapter.fetchQuote(
+    { id: "US-NG", dest_currency: "NGN" }, 200, mockFetch(200, wireDearerFixture)
+  );
+  check("when the wire is dearer than debit, quotes the debit price", wireDearer.available && wireDearer.fee_flat === 4.47, wireDearer);
+  check("ignores business-card pay-ins a consumer can't use", wireDearer.available && wireDearer.pay_in === "DEBIT", wireDearer);
+  check(
+    "ignores disabled BALANCE even when cheapest",
+    wireDearer.available && wireDearer.fee_flat !== 1.73
+  );
 
   const unsupported = await wiseAdapter.fetchQuote(
     { id: "US-NG", dest_currency: "NGN" }, 200,
