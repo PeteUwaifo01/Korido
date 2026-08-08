@@ -144,13 +144,39 @@ All Vercel references have been removed from the code and comments.
   `APP_URL`).
 - Task P1: final name/domain.
 
-**Needs live verification once Supabase is up**
-- Both cron endpoints end-to-end (auth guard, rows actually landing in `quotes`
-  and `mid_rates`). Only their adapters have been exercised so far.
-- The board with real rows — the no-data path is verified (renders 200 with
-  "Rates temporarily unavailable"); the populated layout has only been checked
-  against unit-tested data shaping.
-- `/go/{offerId}` click logging against a real `clicks` table.
+**Verified end-to-end against the live Supabase project — 2026-08-08 23:55 UTC**
+Supabase is created, `0001_init.sql` applied, `.env.local` populated. Run
+`npm run verify:supabase` to re-check setup at any time (17 assertions).
+
+- Schema: all 9 tables present, seeds correct (3 corridors, 7 providers,
+  21 offers).
+- **RLS confirmed working**: the public key reads the catalog but returns zero
+  rows from `clicks`, `alert_subscribers`, `alerts` and `conversions`, and is
+  refused when it tries to write to `mid_rates`.
+- Cron auth guard: unauthenticated request → 401.
+- `/api/cron/collect-mid-rates` → 3 rows stored.
+- `/api/cron/collect-quotes` → **12/12 adapter×corridor quotes collected and
+  stored**, no failures.
+- Board renders live figures. US→NG at $200: Taptap ₦275,600 (best), Sendwave
+  ₦275,211, LemFi ₦275,200, Wise ₦271,515; Remitly/WorldRemit/Xe correctly show
+  "temporarily unavailable" (no adapters). Savings line, timestamps, corridor
+  switch and amount change all correct.
+- `/go/7?from=/` → 302 to the provider, one `clicks` row with a 64-char salted
+  hash and `landing_path=/`. No raw IP stored.
+
+**Worth noting from the live board:** Wise posts the *best headline rate* on
+US→NG (1388.61 vs Taptap's 1378) but finishes last on what actually arrives,
+because of its $4.47 fee. That is the whole argument for ranking on receive
+amount rather than rate — and it is exactly what the session-1 pay-in bug would
+have got wrong, since it would have shown Wise's fee as $8.12.
+
+**Known accuracy gap, now demonstrated:** at $500 the board shows Wise's fee as
+$6.91 — the figure observed at the $200 reference amount. Wise's real fee scales
+with amount, so we understate it as the amount grows. The estimate notice below
+the rows says so plainly, but the honest fix is to collect at two amounts and
+derive a real `fee_pct`. Raising this from "possible follow-up" to a named task.
+
+**Still needs live verification**
 - Watch for drift on the scraped adapters: any provider can change payload
   shape without notice. Failures are visible as "temporarily unavailable" rows,
   never wrong numbers, but they should be investigated not ignored.
@@ -160,7 +186,10 @@ All Vercel references have been removed from the code and comments.
   displayed reference rate.
 
 **Next steps**
+0. Derive a real `fee_pct` by collecting at two amounts, so figures away from
+   $200 stop being estimates (see the accuracy gap above).
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
+   Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.
 2. Corridor landing pages for SEO (§1) + WhatsApp rate ticket / OG images.
 3. Privacy page, affiliate disclosure page, CAN-SPAM email footer (§7).
 4. Weekly accuracy audit (§4): spot-check stored quotes vs live calculators.
