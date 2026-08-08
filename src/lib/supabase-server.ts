@@ -3,7 +3,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Service-role client: server routes and cron only. The service key bypasses
 // RLS, so this module imports "server-only" — bundling it into client code is
-// a build error, not a runtime leak. Secrets live in Vercel env vars (spec §7).
+// a build error, not a runtime leak. Secrets live in the host's env vars and in
+// .env.local, never in the repo (spec §7).
 
 let cached: SupabaseClient | null = null;
 

@@ -67,6 +67,26 @@
   amount`. Away from $200 the board says plainly that figures are estimates.
   Per-amount collection is a possible follow-up if it proves to matter.
 
+**Hosting — researched to a conclusion 2026-08-08, don't re-open**
+The spec's "Vercel free tier, $0/month" assumption does not survive their terms.
+Full comparison, so this is settled once:
+
+| Host | Commercial use | Free-tier reality | Next tier |
+|---|---|---|---|
+| Vercel Hobby | **Prohibited** — their fair-use policy names "affiliate linking is the primary purpose of the site" as commercial | n/a | Pro $20/mo = **$240/yr**, over budget |
+| Netlify Free | Allowed | 300 credits/mo; **15 per production deploy** (~20 deploys), 20/GB bandwidth. Hard limit, no top-up; exhausting it **pauses every site on the account** | Personal $9/mo = **$108/yr**, over budget |
+| Cloudflare Workers Free | Allowed | Deploys unmetered, 100k req/day, unlimited bandwidth. Needs `@opennextjs/cloudflare` (supports Next.js 16). Risk: 10ms CPU/request on SSR | Paid $5/mo = **$60/yr**, fits budget |
+
+Recommendation: **Cloudflare Workers.** Traffic at trial scale is negligible on
+any of them — the deciding factor is that Netlify meters *deploys*, which is
+what we actually consume during build-out, and its penalty is the live site
+going dark. Peter already holds a Netlify account; it stays as a fallback.
+
+Nothing in `src/` is host-specific: no `@vercel/*` dependency, `maxDuration` is
+standard Next.js, `x-forwarded-for` is set by every mainstream host, and the
+cron runs on GitHub Actions calling a URL. Switching hosts is configuration.
+All Vercel references have been removed from the code and comments.
+
 **Needs Peter's judgement**
 1. **LemFi rate is scaled in transit.** The API returns e.g.
    `8.94486…e+23` for a rate of 1382; LemFi's own client divides it by the
@@ -82,6 +102,9 @@
    Public repos get unmetered Actions. Either make the repo public, or drop the
    cadence — the FX source only publishes once a day, so hourly would lose
    nothing today. Quote collection adds ~960 min/month on top.
+   *(Only the repo's public/private setting needs deciding — Peter owns the
+   korido.app domain and its mailboxes, so `hello@korido.app` is live and Task
+   P1's name/domain question is effectively settled.)*
 3. **Affiliate disclosure placement.** §7 asks for disclosure "adjacent to every
    outbound CTA". Currently: one visible statement directly above the row list
    (so it sits with the CTAs) plus the full footer statement, rather than a line

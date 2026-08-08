@@ -66,11 +66,26 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
 
 | Layer | Choice | Constraint |
 |---|---|---|
-| App | Next.js App Router | Vercel **Hobby** |
+| App | Next.js App Router | host must permit **commercial use** on its free tier — see below |
 | DB | Supabase Postgres | free tier, RLS on all user-adjacent tables |
 | Email | Resend | free tier, 3k/mo |
-| Cron | **GitHub Actions** | Vercel Hobby crons are daily-only — too coarse for §4 |
+| Cron | **GitHub Actions** | host-independent by design — it just calls a URL |
 | Analytics | first-party, in Postgres | no third-party ad trackers |
+
+**Hosting is constrained, and the obvious answers are wrong.** Korido is an
+affiliate site, which makes it *commercial* under most free-tier terms:
+
+- **Vercel Hobby is prohibited** — their fair-use policy names "affiliate
+  linking is the primary purpose of the site" as commercial usage. Pro is
+  $240/yr, more than twice the entire trial budget.
+- **Netlify Free** allows commercial use but bills 15 credits per production
+  deploy against 300/month (~20 deploys), is a hard limit, and **pauses every
+  site on the account** when exhausted.
+- **Cloudflare Workers Free** allows commercial use, does not meter deploys,
+  and gives 100k requests/day. Needs `@opennextjs/cloudflare`.
+
+Keep the app host-agnostic: no host-specific SDKs, no platform-only APIs.
+Today nothing in `src/` depends on a particular host.
 
 Infra cost target is **$0** (domain is the only cash line). Do not introduce a
 service, plan, or paid tier without asking. **Do not add npm dependencies

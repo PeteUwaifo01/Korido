@@ -13,7 +13,8 @@ export function sessionHash(ip: string | null, userAgent: string | null): string
 }
 
 export function clientIpFrom(headers: Headers): string | null {
-  // Vercel sets x-forwarded-for; take the first hop. Used transiently, never stored.
+  // Every mainstream host sets x-forwarded-for; take the first hop.
+  // Used transiently to build the salted hash, never stored.
   const fwd = headers.get("x-forwarded-for");
   return fwd ? fwd.split(",")[0].trim() : null;
 }

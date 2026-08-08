@@ -1,8 +1,8 @@
 name: Collect quotes
 
 # Spec §4 cadence: every 30–60 min per corridor during US waking hours.
-# Vercel Hobby crons only run daily, so GitHub Actions drives the schedule
-# and calls the deployed endpoint. 12:00–03:30 UTC ≈ 7am–10:30pm ET.
+# GitHub Actions drives the schedule and calls the deployed endpoint, which
+# keeps collection working on any host. 12:00–03:30 UTC ≈ 7am–10:30pm ET.
 on:
   schedule:
     - cron: "0,30 12-23 * * *"

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { ADAPTERS } from "@/lib/adapters";
 
-// Quote pipeline entry point (spec §4). Invoked on a schedule (GitHub
-// Actions cron hitting this URL — Vercel Hobby crons are daily-only,
-// too coarse for a 30–60 min cadence). Auth: Bearer CRON_SECRET.
+// Quote pipeline entry point (spec §4). Invoked on a schedule by GitHub Actions
+// hitting this URL, which keeps the cadence independent of whatever host we
+// deploy to. Auth: Bearer CRON_SECRET.
 //
 // Reference amount: quotes are collected at $200 sourceAmount — a typical
 // remittance size — so fee_flat is comparable across collections. The UI

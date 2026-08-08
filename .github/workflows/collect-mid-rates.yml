@@ -1,8 +1,8 @@
 name: Collect mid-market rates
 
 # Spec §4 cadence: mid-market rate every 15 min from an open FX source.
-# GitHub Actions drives it (Vercel Hobby crons are daily-only) by calling the
-# deployed endpoint, which holds the CRON_SECRET guard.
+# GitHub Actions drives it by calling the deployed endpoint, which holds the
+# CRON_SECRET guard. Host-independent by design.
 #
 # Two things Peter should know before this runs in anger:
 #   1. Actions minutes — 96 runs/day ≈ 2,880 billed minutes/month (runs are
