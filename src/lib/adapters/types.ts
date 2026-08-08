@@ -3,8 +3,9 @@
 // Output mirrors the `quotes` table so the collector can insert rows 1:1.
 
 export interface Corridor {
-  id: string;            // 'US-NG'
-  dest_currency: string; // 'NGN'
+  id: string;             // 'US-NG'
+  dest_currency: string;  // 'NGN'
+  dest_country?: string;  // 'NG' — scraped calculators key on country, not currency
 }
 
 export type AdapterResult =

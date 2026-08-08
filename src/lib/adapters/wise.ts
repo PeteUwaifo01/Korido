@@ -8,9 +8,9 @@
 // may accept, hold, or transmit funds). This adapter reads prices; nothing more.
 
 import type { AdapterResult, Corridor, QuoteAdapter } from "./types";
+import { KORIDO_UA as UA } from "./shared";
 
 const ENDPOINT = "https://api.wise.com/v3/quotes";
-const UA = "KoridoBot/1.0 (+https://korido.app; rate comparison; contact: ops@korido.app)";
 
 interface WisePaymentOption {
   disabled?: boolean;

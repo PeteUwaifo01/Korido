@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const db = supabaseAdmin();
   const { data: offers, error } = await db
     .from("offers")
-    .select("id, provider_id, corridors(id, dest_currency)")
+    .select("id, provider_id, corridors(id, dest_currency, dest_country)")
     .eq("vertical_id", "send")
     .eq("active", true);
 
@@ -38,7 +38,11 @@ export async function GET(req: NextRequest) {
     const adapter = ADAPTERS[offer.provider_id as string];
     if (!adapter) continue; // provider has no adapter yet — no row, no stale data
 
-    const corridor = offer.corridors as unknown as { id: string; dest_currency: string };
+    const corridor = offer.corridors as unknown as {
+      id: string;
+      dest_currency: string;
+      dest_country: string;
+    };
     const quote = await adapter.fetchQuote(corridor, REFERENCE_AMOUNT_USD);
 
     if (quote.available) {
