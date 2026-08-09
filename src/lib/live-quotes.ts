@@ -78,6 +78,9 @@ export async function fetchLiveQuotes(
           fx_rate: quote.fx_rate,
           fee_flat: quote.fee_flat,
           fee_pct: quote.fee_pct,
+          // Whatever the provider stated outright, carried through unchanged.
+          receive: quote.receive ?? null,
+          delivery: quote.delivery ?? null,
         };
       } catch {
         // Timeout or thrown error — unavailable, never a guess.

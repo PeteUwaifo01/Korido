@@ -31,6 +31,10 @@ interface SendwavePricing {
   effectiveExchangeRate?: string;
   effectiveFeeAmount?: string;
   campaignsApplied?: unknown[];
+  /** Sendwave publishes the receive amount outright. Note it reflects the
+   *  *effective* (promo-inclusive) price, so it is only safe to use when no
+   *  campaign is applied — see below. */
+  receiveAmount?: number;
 }
 
 export const sendwaveAdapter: QuoteAdapter = {
@@ -105,12 +109,22 @@ export const sendwaveAdapter: QuoteAdapter = {
       return { available: false, reason: `unusable baseFeeRateBps for ${corridor.id}`, raw: data };
     }
 
+    // Sendwave states `receiveAmount`, but it reflects the *effective* price —
+    // promo campaigns included. We publish the standing (base) price, so the
+    // stated figure is only usable when no campaign is in play. With one
+    // active, fall back to computing from base rather than silently quoting a
+    // new-customer promo as the standard rate.
+    const campaigned = Array.isArray(data.campaignsApplied) && data.campaignsApplied.length > 0;
+    const stated = typeof data.receiveAmount === "number" ? data.receiveAmount : null;
+
     return {
       available: true,
       fx_rate: rate,
       fee_flat: fee,
       fee_pct: (bps ?? 0) / 10_000,
       raw: { ...data, sourceAmountUsd, quoted: "base (promotional campaigns excluded)" },
+      receive: campaigned ? null : stated,
+      delivery: null, // Sendwave publishes no per-quote delivery estimate here
     };
   },
 };

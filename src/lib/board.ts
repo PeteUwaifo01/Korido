@@ -14,7 +14,6 @@ export const REFERENCE_AMOUNT_USD = 200;
 export interface OfferRow {
   id: number;
   providerName: string;
-  speedLabel: string | null;
 }
 
 export interface QuoteRow {
@@ -23,13 +22,20 @@ export interface QuoteRow {
   fx_rate: number | null;
   fee_flat: number | null;
   fee_pct: number | null;
+  /** Receive amount the provider stated for this exact amount, if they publish
+   *  one. Always preferred over our arithmetic — see receiveAmount(). */
+  receive?: number | null;
+  /** The provider's own delivery wording. Null means they don't publish one,
+   *  and we then show nothing rather than a guess. */
+  delivery?: string | null;
 }
 
 export type BoardRow =
   | {
       offerId: number;
       providerName: string;
-      speedLabel: string | null;
+      /** The provider's own delivery wording, or null. Never invented. */
+      delivery: string | null;
       available: true;
       rate: number;
       fee: number;
@@ -39,7 +45,7 @@ export type BoardRow =
   | {
       offerId: number;
       providerName: string;
-      speedLabel: string | null;
+      delivery: null;
       available: false;
     };
 
@@ -80,8 +86,21 @@ export function freshestQuotes(quotes: QuoteRow[], now: number): Map<number, Quo
   return out;
 }
 
-/** What the recipient gets for `amount`, given a quote. Never negative. */
+/**
+ * What the recipient gets for `amount`.
+ *
+ * If the provider published the figure themselves, use theirs — Wise states
+ * `targetAmount` and Sendwave `receiveAmount`. Our arithmetic agrees with them
+ * to a fraction of a naira today, but they are authoritative: any rounding or
+ * pricing rule we don't know about is already baked into their number and not
+ * into ours. We only compute when the provider states nothing (LemFi, Taptap),
+ * which is what their own calculators do client-side anyway.
+ */
 export function receiveAmount(quote: QuoteRow, amount: number): number | null {
+  if (typeof quote.receive === "number" && Number.isFinite(quote.receive) && quote.receive >= 0) {
+    return quote.receive;
+  }
+
   const { fx_rate, fee_flat, fee_pct } = quote;
   if (typeof fx_rate !== "number" || !Number.isFinite(fx_rate) || fx_rate <= 0) return null;
   const flat = typeof fee_flat === "number" && Number.isFinite(fee_flat) ? fee_flat : 0;
@@ -117,14 +136,18 @@ export function buildBoard(
       return {
         offerId: offer.id,
         providerName: offer.providerName,
-        speedLabel: offer.speedLabel,
+        delivery: null,
         available: false,
       };
     }
     return {
       offerId: offer.id,
       providerName: offer.providerName,
-      speedLabel: offer.speedLabel,
+      // Only ever the provider's own words. `offers.speed_label` in the seed
+      // data was invented and is deliberately not used: Wise's real estimate
+      // is "in 30 minutes" at $200 but "by Mon" at $1,000, so a fixed label
+      // per provider is wrong by roughly two days at larger amounts.
+      delivery: q.delivery ?? null,
       available: true,
       rate: q.fx_rate as number,
       fee: totalFee(q, amount),

@@ -201,6 +201,40 @@ which is the number we know to be wrong. 12 tests in
   provider-to-provider, never against the mid, so this affects only the
   displayed reference rate.
 
+**Second sweep: what else was assumed rather than reported?**
+Peter followed up — "when we are comparing rates, why are we assuming, aren't
+the providers listing this?" Audited every figure on the board. Three were ours,
+not theirs:
+
+1. **Delivery speed was fabricated.** `offers.speed_label` was seeded with
+   literal strings ("Minutes", "Minutes–hrs", "Hours") invented in the
+   migration. Wise publishes a real per-quote estimate that moves with amount
+   and pay-in method: **"in 30 minutes" at $200, "by Mon" at $1,000** — our
+   fixed "Minutes–hrs" was wrong by about two days on larger sends. The board
+   now shows only the provider's own wording, and nothing at all for LemFi,
+   Sendwave and Taptap, which publish none. `speed_label` stays in the schema
+   (spec §3) but is no longer rendered.
+2. **Receive amount was computed when Wise and Sendwave state it.** Wise gives
+   `targetAmount`, Sendwave `receiveAmount`. Our arithmetic agreed to 0.0002
+   naira, but theirs is authoritative, so we now publish theirs and compute only
+   for LemFi and Taptap, which state nothing. Caveat handled: Sendwave's stated
+   figure is promo-inclusive, so it is used only when `campaignsApplied` is
+   empty — otherwise we fall back to computing from the base price, keeping our
+   "no new-customer promo as the standing rate" rule intact.
+3. **The mid-market rate implied a freshness it doesn't have.** It read
+   "Mid-market rate · just now" because `collected_at` is *our poll time*, while
+   the source publishes once a day. Visible symptom: ₦1,364 shown as current
+   while all four providers quoted 1376–1389 — a mid below every retail rate is
+   implausible. Now labelled "Mid-market reference · ExchangeRate-API, published
+   daily", with no relative timestamp.
+
+Also learned from the sweep: **Wise's available pay-in methods change with
+amount.** At $200 DEBIT is enabled ($4.47); at $1,000 every card option is
+disabled ("we can't support card payments for this currency route") leaving only
+BANK_TRANSFER at $12.18. The adapter already picks the cheapest *enabled*
+consumer option, so it handles this — but it is another reason quoting live per
+amount was the right call.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.

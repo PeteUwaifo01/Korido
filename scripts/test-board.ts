@@ -32,10 +32,10 @@ function check(name: string, cond: boolean, detail?: unknown) {
 }
 
 const offers: OfferRow[] = [
-  { id: 1, providerName: "LemFi", speedLabel: "Minutes" },
-  { id: 2, providerName: "Wise", speedLabel: "Minutes–hrs" },
-  { id: 3, providerName: "Taptap Send", speedLabel: "Minutes" },
-  { id: 4, providerName: "Xe", speedLabel: "Hours" },
+  { id: 1, providerName: "LemFi" },
+  { id: 2, providerName: "Wise" },
+  { id: 3, providerName: "Taptap Send" },
+  { id: 4, providerName: "Xe" },
 ];
 
 function q(offer_id: number, msAgo: number, fx_rate: number, fee_flat = 0, fee_pct = 0): QuoteRow {
@@ -73,6 +73,35 @@ check("a zero rate yields no publishable figure", receiveAmount(q(1, 0, 0), 200)
 check("a negative rate yields no publishable figure", receiveAmount(q(1, 0, -5), 200) === null);
 check("a null rate yields no publishable figure",
   receiveAmount({ offer_id: 1, collected_at: at(0), fx_rate: null, fee_flat: 0, fee_pct: 0 }, 200) === null);
+
+console.log("\nProvider-stated figures beat our arithmetic");
+check(
+  "uses the provider's stated receive amount when they publish one",
+  receiveAmount({ ...q(1, 0, 1388.61, 4.47), receive: 271515.42 }, 200) === 271515.42
+);
+check(
+  "computes only when the provider states nothing",
+  receiveAmount({ ...q(1, 0, 1000, 5), receive: null }, 200) === (200 - 5) * 1000
+);
+check(
+  "a nonsensical stated figure is ignored rather than published",
+  receiveAmount({ ...q(1, 0, 1000, 5), receive: -1 }, 200) === (200 - 5) * 1000
+);
+{
+  const withDelivery = buildBoard(
+    [offers[1]],
+    [{ ...q(2, 5 * MIN, 1388.61, 4.47), delivery: "in 30 minutes" }],
+    200,
+    NOW
+  );
+  const row = withDelivery.rows[0];
+  check("carries the provider's own delivery wording", row.available && row.delivery === "in 30 minutes", row);
+}
+{
+  const noDelivery = buildBoard([offers[0]], [q(1, 5 * MIN, 1376)], 200, NOW);
+  const row = noDelivery.rows[0];
+  check("no invented speed when the provider states none", row.available && row.delivery === null, row);
+}
 
 console.log("\nBoard assembly");
 const board = buildBoard(

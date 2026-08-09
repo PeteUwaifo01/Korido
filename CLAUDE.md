@@ -59,6 +59,16 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
   auditable back to what the provider actually said.
 - Adapters model what a **US consumer** can actually get — not the cheapest
   line item in a payload they could never use.
+- **Prefer what the provider states over anything we derive.** Wise publishes
+  `targetAmount` and a delivery estimate; Sendwave publishes `receiveAmount`.
+  Where a provider states a figure, show theirs — if our arithmetic ever
+  disagrees, they are right by definition. Compute only where nothing is
+  published (LemFi, Taptap).
+- **Never display a fact the provider did not give us.** The seeded
+  `offers.speed_label` values ("Minutes", "Hours") were invented and are no
+  longer rendered: Wise's real estimate is "in 30 minutes" at $200 but "by Mon"
+  at $1,000, so a fixed per-provider label is wrong by ~2 days at larger
+  amounts. If a provider publishes no delivery time, show none.
 - **Never scale a quote from one amount to another.** Fees and rates move with
   amount: Wise's fee grows with the send, Sendwave's rate improves above $750.
   Extrapolating from the $200 collection once ranked Wise *first* at $1,000 when

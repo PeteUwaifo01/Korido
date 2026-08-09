@@ -96,7 +96,7 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
 
   const { data: offers, error: offerErr } = await db
     .from("offers")
-    .select("id, provider_id, speed_label, providers(name)")
+    .select("id, provider_id, providers(name)")
     .eq("vertical_id", "send")
     .eq("corridor_id", corridor.id)
     .eq("active", true);
@@ -109,7 +109,6 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     id: o.id as number,
     providerName:
       (o.providers as unknown as { name: string } | null)?.name ?? `Offer ${o.id}`,
-    speedLabel: (o.speed_label as string | null) ?? null,
   }));
 
   // Quotes are collected at $200 only. Reusing that snapshot for a different
@@ -139,11 +138,25 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     const since = new Date(now - 3 * 60 * 60 * 1000).toISOString();
     const { data } = await db
       .from("quotes")
-      .select("offer_id, collected_at, fx_rate, fee_flat, fee_pct")
+      .select("offer_id, collected_at, fx_rate, fee_flat, fee_pct, raw")
       .in("offer_id", offerRows.map((o) => o.id))
       .gte("collected_at", since)
       .order("collected_at", { ascending: false });
-    quotes = (data ?? []) as unknown as QuoteRow[];
+
+    // Lift the provider-stated figures back out of `raw` so the board can
+    // prefer them over its own arithmetic.
+    quotes = (data ?? []).map((r) => {
+      const raw = r.raw as { stated_receive?: number | null; stated_delivery?: string | null } | null;
+      return {
+        offer_id: r.offer_id as number,
+        collected_at: r.collected_at as string,
+        fx_rate: r.fx_rate as number | null,
+        fee_flat: r.fee_flat as number | null,
+        fee_pct: r.fee_pct as number | null,
+        receive: raw?.stated_receive ?? null,
+        delivery: raw?.stated_delivery ?? null,
+      };
+    });
   }
 
   const { data: mid } = await db
@@ -249,8 +262,11 @@ export default async function Home(props: PageProps<"/">) {
 
           {midRate && corridor && (
             <div className="mt-4">
+              {/* Deliberately NOT "just now". collected_at is when we polled,
+                  but the source publishes once a day — showing our poll time
+                  would imply a freshness the number does not have. */}
               <div className="text-xs text-[#BFD8CC]">
-                Mid-market rate · {timeAgo(midRate.collected_at, now)}
+                Mid-market reference · {MID_RATE_SOURCE.name}, published daily
               </div>
               <div className="display tnum text-xl font-bold">
                 $1 = {symbol}
@@ -315,7 +331,9 @@ export default async function Home(props: PageProps<"/">) {
                         </div>
                         {row.available ? (
                           <div className="mt-0.5 text-xs text-[#6B7A73]">
-                            {row.speedLabel ? `${row.speedLabel} · ` : ""}fee $
+                            {/* Delivery appears only when the provider states
+                                it for this amount — never a generic label. */}
+                            {row.delivery ? `Arrives ${row.delivery} · ` : ""}fee $
                             {row.fee.toFixed(2)} · {symbol}
                             {money(row.rate, 2)}/$
                           </div>

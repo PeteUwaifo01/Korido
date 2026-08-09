@@ -16,6 +16,16 @@ export type AdapterResult =
       fee_pct: number;   // percentage component when the provider exposes one
       raw: unknown;      // full provider payload, stored in quotes.raw for audit
       pay_in?: string | null; // funding method the quote assumes, when the provider exposes one
+
+      // Figures the provider STATES rather than ones we derive. Prefer these
+      // wherever they exist: if our arithmetic ever disagrees with the
+      // provider's own number, the provider is right by definition.
+      /** Receive amount as published by the provider, for this exact send amount. */
+      receive?: number | null;
+      /** The provider's own delivery estimate, verbatim ("in 30 minutes", "by Mon").
+       *  Null when the provider does not publish one — we then say nothing rather
+       *  than inventing a speed. */
+      delivery?: string | null;
     }
   | {
       available: false;

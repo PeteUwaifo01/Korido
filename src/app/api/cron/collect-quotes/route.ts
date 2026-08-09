@@ -46,12 +46,21 @@ export async function GET(req: NextRequest) {
     const quote = await adapter.fetchQuote(corridor, REFERENCE_AMOUNT_USD);
 
     if (quote.available) {
+      // `raw` carries the provider payload plus the figures the provider
+      // STATED (receive amount, delivery wording). The board prefers those over
+      // anything we derive, and the `quotes` table has no column for them, so
+      // they live here under a stable shape.
       const { error: insErr } = await db.from("quotes").insert({
         offer_id: offer.id,
         fx_rate: quote.fx_rate,
         fee_flat: quote.fee_flat,
         fee_pct: quote.fee_pct,
-        raw: quote.raw ?? null,
+        raw: {
+          provider: quote.raw ?? null,
+          stated_receive: quote.receive ?? null,
+          stated_delivery: quote.delivery ?? null,
+          amount_usd: REFERENCE_AMOUNT_USD,
+        },
       });
       results.push({
         offer: offer.id,

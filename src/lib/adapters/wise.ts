@@ -19,6 +19,9 @@ interface WisePaymentOption {
   fee?: { total?: number };
   targetAmount?: number;
   sourceAmount?: number;
+  /** Wise's own wording, e.g. "in 30 minutes" or "by Mon". Varies with amount
+   *  and pay-in method, which is exactly why we must not invent it. */
+  formattedEstimatedDelivery?: string;
 }
 
 // Pay-in methods a US consumer sender can actually use. Business-card and
@@ -126,10 +129,19 @@ export const wiseAdapter: QuoteAdapter = {
       fee_pct: 0,                   // Wise reports a single total; pct folded in
       raw: {
         rate: data.rate,
-        chosen: { payIn: option.payIn, payOut: option.payOut, fee: option.fee, targetAmount: option.targetAmount },
+        chosen: {
+          payIn: option.payIn,
+          payOut: option.payOut,
+          fee: option.fee,
+          targetAmount: option.targetAmount,
+          formattedEstimatedDelivery: option.formattedEstimatedDelivery,
+        },
         optionCount: data.paymentOptions?.length ?? 0,
       },
       pay_in: option.payIn ?? null,
+      // Wise publishes both — always prefer them over our own arithmetic.
+      receive: typeof option.targetAmount === "number" ? option.targetAmount : null,
+      delivery: option.formattedEstimatedDelivery ?? null,
     };
   },
 };
