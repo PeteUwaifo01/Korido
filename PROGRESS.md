@@ -337,6 +337,32 @@ exactly as LemFi's encoded rate was.
   board computes `(amount − fee) × rate`, which holds the spend at exactly what
   the user typed. Fixed in both `sendwave.ts` and the new `xoom.ts`.
 
+**§7 pages written — the last thing blocking a public launch**
+`/privacy`, `/affiliate-disclosure`, `/terms`, linked from the board footer and
+from each other. Plain language, and every claim checked against what the code
+actually does rather than copied from a template.
+
+Writing them turned up a claim that would have been false. The layout pulled
+fonts from `fonts.googleapis.com`, so **every visitor handed their IP to Google**
+before doing anything. Both faces are SIL Open Font License, so they are now
+self-hosted from `/public/fonts` (latin subset, 7 files, ~400KB). Verified: the
+served page references **no external host at all**, and sets **no cookies** —
+both now stated on the privacy page as facts a reader can check.
+
+Two things on those pages that must be updated in the same commit as the
+feature they describe, or they become lies:
+- **Privacy** does not claim to collect email addresses, because alerts (§6) do
+  not exist yet. Add that section when alerts ship.
+- **Affiliate disclosure** says we have *no* commission arrangements and that
+  every button goes straight to the provider untracked. True today. Update it
+  the moment `npm run affiliate` sets a real `affiliate_url`.
+
+Still needed before launch: a physical mailing address for the CAN-SPAM email
+footer (§6), which only Peter can supply, and the attorney review of
+Privacy/ToS that §7 already defers to post-trial (~$300, once commissions
+clear). These pages are written to be handed to that attorney as a starting
+point, not to replace them.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.

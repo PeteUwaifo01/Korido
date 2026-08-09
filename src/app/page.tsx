@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase-public";
 import { fetchLiveQuotes, type LiveOffer } from "@/lib/live-quotes";
 import { ADAPTERS } from "@/lib/adapters";
@@ -281,7 +282,11 @@ export default async function Home(props: PageProps<"/">) {
           {/* Spec §7: affiliate disclosure adjacent to the outbound CTAs. */}
           <p className="mt-1 text-xs leading-relaxed text-[#6B7A73]">
             Korido is free for you. When you continue to a provider through these
-            buttons they may pay us a commission — it never changes your rate or fee.
+            buttons they may pay us a commission — it never changes your rate, and
+            never affects the ranking.{" "}
+            <Link className="underline" href="/affiliate-disclosure">
+              How we make money
+            </Link>
           </p>
 
           {board?.allUnavailable !== false ? (
@@ -441,6 +446,12 @@ export default async function Home(props: PageProps<"/">) {
             guess — one of them may beat the winner above. We&apos;ll add any of
             them the moment they give us access to real prices.
           </p>
+          <nav className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4">
+            <Link className="underline" href="/privacy">Privacy</Link>
+            <Link className="underline" href="/affiliate-disclosure">How we make money</Link>
+            <Link className="underline" href="/terms">Terms</Link>
+            <a className="underline" href="mailto:hello@korido.app">Contact</a>
+          </nav>
         </footer>
       </main>
     </>
