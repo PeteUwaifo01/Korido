@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sessionHash, clientIpFrom } from "@/lib/session";
+import { buildDestination, UNATTRIBUTED } from "@/lib/attribution";
 
 // Spec §5: GET /go/{offerId} → insert into clicks → 302 to affiliate_url
 // with {subid} = click uuid. Weekly reconciliation joins network reports
@@ -54,15 +55,13 @@ export async function GET(
 
   // A logging failure must never strand the user — redirect regardless,
   // with a subid of "unattributed" so reconciliation can spot the gap.
-  const subid = click?.id ?? "unattributed";
+  const subid = click?.id ?? UNATTRIBUTED;
   if (clickErr) console.error("click insert failed", clickErr.message);
 
   const homepage =
     (offer.providers as unknown as { homepage: string } | null)?.homepage ??
     "https://korido.app";
-  const destination = offer.affiliate_url
-    ? offer.affiliate_url.replaceAll("{subid}", String(subid))
-    : homepage;
+  const destination = buildDestination(offer.affiliate_url, homepage, String(subid));
 
   return NextResponse.redirect(destination, { status: 302 });
 }
