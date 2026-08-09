@@ -385,7 +385,13 @@ export default async function Home(props: PageProps<"/">) {
 
                     {row.available && (
                       <a
-                        href={`/go/${row.offerId}?from=/`}
+                        // No query string, deliberately. Netlify's edge appends
+                        // the incoming query to our 302 when the destination
+                        // has none of its own, which leaked "?from=/" to the
+                        // provider. The route reads the landing path from the
+                        // Referer instead — this link is same-origin, so the
+                        // full path survives.
+                        href={`/go/${row.offerId}`}
                         rel="sponsored nofollow noopener"
                         className={
                           "mt-3 flex items-center justify-center gap-1 rounded-xl py-2.5 text-sm font-bold " +

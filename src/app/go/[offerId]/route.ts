@@ -32,12 +32,20 @@ export async function GET(
   }
 
   // Landing path: where on our site the click came from (for EPC by page).
-  const from = req.nextUrl.searchParams.get("from");
+  //
+  // Read from the Referer, not a query parameter. Netlify's edge appends the
+  // incoming query string to our redirect whenever the destination carries none
+  // of its own, which pushed our internal "?from=/" onto the provider's URL.
+  // Since the board links here same-origin, the browser sends the full path in
+  // Referer anyway, so nothing is lost. `?from=` is still honoured for links
+  // made by hand, but nothing we render uses it.
   const referer = req.headers.get("referer");
-  let landingPath: string | null = from;
+  let landingPath: string | null = req.nextUrl.searchParams.get("from");
   if (!landingPath && referer) {
     try {
-      landingPath = new URL(referer).pathname;
+      const u = new URL(referer);
+      // Only trust a Referer from our own site.
+      landingPath = u.origin === req.nextUrl.origin ? u.pathname : null;
     } catch {
       landingPath = null;
     }
