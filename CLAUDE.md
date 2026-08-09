@@ -69,12 +69,17 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
   longer rendered: Wise's real estimate is "in 30 minutes" at $200 but "by Mon"
   at $1,000, so a fixed per-provider label is wrong by ~2 days at larger
   amounts. If a provider publishes no delivery time, show none.
+- **The board quotes every provider live, at every amount.** A comparison that
+  tells people to go and re-check each provider has saved them nothing. Cron
+  collection still runs, but it builds the historical archive (§3, §10) and
+  serves as a fallback — it is not what the page shows by default.
 - **Never scale a quote from one amount to another.** Fees and rates move with
-  amount: Wise's fee grows with the send, Sendwave's rate improves above $750.
-  Extrapolating from the $200 collection once ranked Wise *first* at $1,000 when
-  it was actually *last*. Quotes are collected at $200; every other amount is
-  fetched live. If a live fetch fails, the row is unavailable — it must never
-  fall back to a figure collected at a different amount.
+  amount: Wise's fee grows with the send, Sendwave's rate improves above $750,
+  and Wise's card pay-in is disabled entirely above ~$200. Extrapolating from
+  the $200 collection once ranked Wise *first* at $1,000 when it was actually
+  *last*. A collected quote may only ever back-fill a row **at the same amount
+  it was collected at**; at any other amount an unanswered provider is
+  "temporarily unavailable".
 
 ---
 

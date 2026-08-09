@@ -235,6 +235,28 @@ BANK_TRANSFER at $12.18. The adapter already picks the cheapest *enabled*
 consumer option, so it handles this — but it is another reason quoting live per
 amount was the right call.
 
+**The disclaimer was the tell — board is now live at every amount**
+Peter, reading the page: *"why would I use this app if this is the case?"* —
+pointing at "Collected automatically at $200… confirm the final figure on their
+own page before you send." He was right. If a comparison site tells you to go
+and re-check all four providers, it has saved you nothing; the disclaimer was
+admitting the numbers were up to 3h old.
+
+Fixed at the cause rather than the wording. The board now quotes every provider
+live at **every** amount, including the $200 default. Cron collection continues,
+but its job is the historical archive (§3, §10 trigger #2) and fallback — not
+the default display.
+
+- Load time: **1.0s cold, 0.48s warm** (60s cache in live-quotes.ts).
+- Fallback is narrow and honest: if a provider does not answer, we use its last
+  collected quote **only at $200**, the amount it was collected at, and the row
+  shows its real age. At any other amount an unanswered provider stays
+  "temporarily unavailable" — a stored figure there is from a different send
+  size, which is the wrong number.
+- Copy now states what the page did rather than apologising for it, and the
+  footer says what the site is for: live quotes, ranked by what actually lands,
+  provider-stated figures preferred, silence where they publish nothing.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.

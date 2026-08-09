@@ -59,8 +59,9 @@ interface BoardData {
   corridor: CorridorRow | null;
   board: Board | null;
   midRate: { rate: number; collected_at: string } | null;
-  /** True when figures came from a live provider call rather than the DB. */
-  live: boolean;
+  /** How many rows fell back to a collected quote because the provider did not
+   *  answer just now. 0 means everything on the page is live. */
+  fallbackCount: number;
   failed: boolean;
 }
 
@@ -70,7 +71,7 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     corridor: null,
     board: null,
     midRate: null,
-    live: false,
+    fallbackCount: 0,
     failed: true,
   };
 
@@ -102,7 +103,7 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     .eq("active", true);
 
   if (offerErr || !offers) {
-    return { corridors: list, corridor, board: null, midRate: null, live: false, failed: true };
+    return { corridors: list, corridor, board: null, midRate: null, fallbackCount: 0, failed: true };
   }
 
   const offerRows: OfferRow[] = offers.map((o) => ({
@@ -111,41 +112,47 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
       (o.providers as unknown as { name: string } | null)?.name ?? `Offer ${o.id}`,
   }));
 
-  // Quotes are collected at $200 only. Reusing that snapshot for a different
-  // amount misranks providers (see live-quotes.ts), so any other amount is
-  // quoted live. Nothing on this page is ever extrapolated.
-  const live = amount !== REFERENCE_AMOUNT_USD;
-  let quotes: QuoteRow[];
+  // ALWAYS quote live, at every amount. A comparison that tells you to go and
+  // re-check each provider has saved you nothing — the numbers have to be as
+  // current as the providers' own pages, or there is no reason to be here.
+  // Results are cached briefly (see live-quotes.ts) so this costs the providers
+  // very little.
+  const liveOffers: LiveOffer[] = offers.map((o) => ({
+    id: o.id as number,
+    providerId: String(o.provider_id),
+  }));
+  const liveRows = await fetchLiveQuotes(
+    liveOffers,
+    {
+      id: corridor.id,
+      dest_currency: corridor.dest_currency,
+      dest_country: corridor.dest_country,
+    },
+    amount,
+    now
+  );
 
-  if (live) {
-    const liveOffers: LiveOffer[] = offers.map((o) => ({
-      id: o.id as number,
-      providerId: String(o.provider_id),
-    }));
-    quotes = await fetchLiveQuotes(
-      liveOffers,
-      {
-        id: corridor.id,
-        dest_currency: corridor.dest_currency,
-        dest_country: corridor.dest_country,
-      },
-      amount,
-      now
-    );
-  } else {
-    // Only quotes inside the freshness window are worth fetching. buildBoard
-    // re-checks freshness per row, so this is a bandwidth filter, not the guard.
+  let quotes: QuoteRow[] = liveRows;
+  const answered = new Set(liveRows.map((r) => r.offer_id));
+  let fallbackCount = 0;
+
+  // If a provider did not answer just now, the collected quote is a genuine
+  // fallback — but ONLY at the reference amount, where it describes the same
+  // question. It is never a fallback at other amounts: there it would be a
+  // figure from a different send size, which is exactly the wrong number.
+  // buildBoard keeps the newest quote per offer, so live always wins.
+  if (amount === REFERENCE_AMOUNT_USD && answered.size < offerRows.length) {
     const since = new Date(now - 3 * 60 * 60 * 1000).toISOString();
     const { data } = await db
       .from("quotes")
       .select("offer_id, collected_at, fx_rate, fee_flat, fee_pct, raw")
-      .in("offer_id", offerRows.map((o) => o.id))
+      .in("offer_id", offerRows.filter((o) => !answered.has(o.id)).map((o) => o.id))
       .gte("collected_at", since)
       .order("collected_at", { ascending: false });
 
     // Lift the provider-stated figures back out of `raw` so the board can
     // prefer them over its own arithmetic.
-    quotes = (data ?? []).map((r) => {
+    const stored: QuoteRow[] = (data ?? []).map((r) => {
       const raw = r.raw as { stated_receive?: number | null; stated_delivery?: string | null } | null;
       return {
         offer_id: r.offer_id as number,
@@ -157,6 +164,8 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
         delivery: raw?.stated_delivery ?? null,
       };
     });
+    fallbackCount = new Set(stored.map((s) => s.offer_id)).size;
+    quotes = [...liveRows, ...stored];
   }
 
   const { data: mid } = await db
@@ -174,7 +183,7 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     board: buildBoard(offerRows, quotes, amount, now),
     // The mid-market reference obeys the same staleness rule as everything else.
     midRate: midRow && isFresh(midRow.collected_at, now) ? midRow : null,
-    live,
+    fallbackCount,
     failed: false,
   };
 }
@@ -185,7 +194,7 @@ export default async function Home(props: PageProps<"/">) {
   const amount = parseAmount(sp.amount);
   const now = Date.now();
 
-  const { corridors, corridor, board, midRate, live } = await loadBoard(
+  const { corridors, corridor, board, midRate, fallbackCount } = await loadBoard(
     requested ?? DEFAULT_CORRIDOR,
     amount,
     now
@@ -390,11 +399,19 @@ export default async function Home(props: PageProps<"/">) {
               </ul>
 
               <p className="text-xs leading-relaxed text-[#8A968F]">
-                {live
-                  ? `Quoted live from each provider for $${money(amount, 2)} just now — not scaled from a smaller amount, because fees and rates change with how much you send.`
-                  : `Collected automatically at $${money(amount, 2)}; each row shows when.`}{" "}
-                Providers can change prices at any moment, so confirm the final
-                figure on their own page before you send.
+                Every provider above was asked for a real quote on{" "}
+                <strong className="font-semibold">${money(amount, 2)} to {country}</strong>{" "}
+                just now — the same question you would ask on their own site, at
+                the same moment. Fees and delivery times change with the amount,
+                so we never scale a price from a different one.
+                {fallbackCount > 0 && (
+                  <>
+                    {" "}
+                    {fallbackCount === 1 ? "One provider" : `${fallbackCount} providers`}{" "}
+                    did not respond just now, so {fallbackCount === 1 ? "that row shows" : "those rows show"}{" "}
+                    our last collected quote with the time it was taken.
+                  </>
+                )}
               </p>
             </>
           )}
@@ -410,9 +427,13 @@ export default async function Home(props: PageProps<"/">) {
             pay us a commission. It never changes your rate, fee, or delivery time.
           </p>
           <p className="mt-2">
-            Rates are collected automatically and shown with the time they were
-            collected. Quotes older than 3 hours are hidden rather than shown as
-            current. Mid-market reference:{" "}
+            We quote every provider live and rank by what actually lands in the
+            recipient&apos;s account — not by the headline rate, which can hide a
+            fee that puts the best-looking option last. Where a provider states a
+            figure themselves, we show theirs. Where they state nothing, we say
+            nothing. Anything we cannot verify in the last 3 hours reads
+            &ldquo;temporarily unavailable&rdquo; instead of showing you an old
+            number. Mid-market reference:{" "}
             <a
               className="underline"
               href={MID_RATE_SOURCE.url}
