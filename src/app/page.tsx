@@ -453,6 +453,7 @@ export default async function Home(props: PageProps<"/">) {
             them the moment they give us access to real prices.
           </p>
           <nav className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-4">
+            <Link className="underline" href="/airtime">Top up a phone</Link>
             <Link className="underline" href="/privacy">Privacy</Link>
             <Link className="underline" href="/affiliate-disclosure">How we make money</Link>
             <Link className="underline" href="/terms">Terms</Link>
