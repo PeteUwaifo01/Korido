@@ -11,18 +11,24 @@ partnering with:
    *Rate access* is what lets us show a provider accurately — and for the ones
    we currently exclude, it is the only route back onto the board.
 
-## Finding the right person
+## Verified contact addresses
 
-No public partnerships address is published by LemFi or Taptap Send — do not
-guess at one. Routes that work:
+Checked 2026-08-09 against each provider's own legal, contact and privacy pages.
+**None of them publishes a `partnerships@` address — do not invent one.** A
+bounce is a wasted first impression, and guessed addresses at a money company
+get filtered.
 
-- **LinkedIn** — search the company plus "partnerships", "growth" or "affiliate".
-  A short connection note with the email below pasted in works better than a
-  cold address.
-- **Their support channel** — `support.lemfi.com` and Taptap's in-app support.
-  Ask to be routed to the partnerships or affiliate team. Slower, but it lands.
-- **Wise is the exception:** `partnerwise@wise.com` is published in their own
-  onboarding guide, so it is safe to use directly.
+| Provider | Published | Use |
+|---|---|---|
+| **Wise** | `partnerwise@wise.com` | Apply via Partnerize first, then email with questions |
+| **LemFi** | `press@lemfi.com`, `support@lemfi.com`, `complaints@lemfi.com` | **press@** — comms routes business enquiries; support answers as customer service |
+| **Sendwave** | `help@sendwave.com` | Skip it — apply through FlexOffers, where they are listed |
+| **Taptap Send** | none | LinkedIn, or in-app support asking to be routed to partnerships |
+| **Xoom** | none | PayPal partner structure, still to be researched |
+
+For the two with no address, LinkedIn works better than a cold inbox anyway:
+search the company plus "partnerships", "growth" or "affiliate", and paste the
+email below into a connection note.
 
 ---
 
