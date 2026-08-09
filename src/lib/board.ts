@@ -14,6 +14,11 @@ export const REFERENCE_AMOUNT_USD = 200;
 export interface OfferRow {
   id: number;
   providerName: string;
+  /** False when no adapter exists for this provider yet. Distinguishes "we
+   *  don't cover them" from "we cover them but couldn't get a price" — telling
+   *  a reader we failed to reach a provider we never asked is a small lie, and
+   *  on this page small lies are the whole risk. */
+  supported?: boolean;
 }
 
 export interface QuoteRow {
@@ -47,6 +52,9 @@ export type BoardRow =
       providerName: string;
       delivery: null;
       available: false;
+      /** "unsupported" = no adapter built yet, we never asked.
+       *  "no-price" = we do cover them, but have no price we can stand behind. */
+      reason: "unsupported" | "no-price";
     };
 
 export interface Board {
@@ -138,6 +146,7 @@ export function buildBoard(
         providerName: offer.providerName,
         delivery: null,
         available: false,
+        reason: offer.supported === false ? "unsupported" : "no-price",
       };
     }
     return {
@@ -158,7 +167,12 @@ export function buildBoard(
 
   const available = rows.filter((r): r is Extract<BoardRow, { available: true }> => r.available);
   available.sort((a, b) => b.receive - a.receive);
-  const unavailable = rows.filter((r) => !r.available);
+
+  // Providers we cover but couldn't price sit above ones we don't cover at all:
+  // the first is a temporary gap, the second is the edge of our coverage.
+  const unavailable = rows
+    .filter((r): r is Extract<BoardRow, { available: false }> => !r.available)
+    .sort((a, b) => Number(a.reason === "unsupported") - Number(b.reason === "unsupported"));
 
   const best = available[0] ?? null;
   const worst = available.length > 1 ? available[available.length - 1] : null;

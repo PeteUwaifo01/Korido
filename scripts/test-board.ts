@@ -32,10 +32,10 @@ function check(name: string, cond: boolean, detail?: unknown) {
 }
 
 const offers: OfferRow[] = [
-  { id: 1, providerName: "LemFi" },
-  { id: 2, providerName: "Wise" },
-  { id: 3, providerName: "Taptap Send" },
-  { id: 4, providerName: "Xe" },
+  { id: 1, providerName: "LemFi", supported: true },
+  { id: 2, providerName: "Wise", supported: true },
+  { id: 3, providerName: "Taptap Send", supported: true },
+  { id: 4, providerName: "Xe", supported: true },
 ];
 
 function q(offer_id: number, msAgo: number, fx_rate: number, fee_flat = 0, fee_pct = 0): QuoteRow {
@@ -129,6 +129,29 @@ check("savings vs worst is best minus worst available",
 check("collectedAt reports the newest published quote",
   board.collectedAt === at(5 * MIN), board.collectedAt);
 check("board is not flagged all-unavailable", board.allUnavailable === false);
+
+console.log("\n\"Not covered\" is not the same claim as \"we tried and failed\"");
+{
+  const mixed = buildBoard(
+    [
+      { id: 1, providerName: "LemFi", supported: true },
+      { id: 9, providerName: "Remitly", supported: false },
+      { id: 2, providerName: "Wise", supported: true },
+    ],
+    [q(1, 5 * MIN, 1376)], // Wise covered but priceless; Remitly never asked
+    200,
+    NOW
+  );
+  const remitly = mixed.rows.find((r) => r.offerId === 9)!;
+  const wise = mixed.rows.find((r) => r.offerId === 2)!;
+  check("a provider with no adapter reads as unsupported",
+    !remitly.available && remitly.reason === "unsupported", remitly);
+  check("a covered provider with no price reads as no-price",
+    !wise.available && wise.reason === "no-price", wise);
+  check("uncovered providers sort last, below covered-but-unpriced",
+    mixed.rows[mixed.rows.length - 1].offerId === 9,
+    mixed.rows.map((r) => r.offerId));
+}
 
 console.log("\nAll-stale board");
 const stale = buildBoard(offers, [q(1, 4 * HOUR, 1382), q(2, 9 * HOUR, 1388)], 200, NOW);

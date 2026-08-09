@@ -1,9 +1,9 @@
 import { supabasePublic } from "@/lib/supabase-public";
-import { MID_RATE_SOURCE } from "@/lib/fx/mid-rates";
 import { fetchLiveQuotes, type LiveOffer } from "@/lib/live-quotes";
+import { ADAPTERS } from "@/lib/adapters";
 import {
   buildBoard,
-  isFresh,
+
   timeAgo,
   REFERENCE_AMOUNT_USD,
   type Board,
@@ -58,7 +58,6 @@ interface BoardData {
   corridors: CorridorRow[];
   corridor: CorridorRow | null;
   board: Board | null;
-  midRate: { rate: number; collected_at: string } | null;
   /** How many rows fell back to a collected quote because the provider did not
    *  answer just now. 0 means everything on the page is live. */
   fallbackCount: number;
@@ -70,7 +69,6 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     corridors: [],
     corridor: null,
     board: null,
-    midRate: null,
     fallbackCount: 0,
     failed: true,
   };
@@ -103,13 +101,14 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     .eq("active", true);
 
   if (offerErr || !offers) {
-    return { corridors: list, corridor, board: null, midRate: null, fallbackCount: 0, failed: true };
+    return { corridors: list, corridor, board: null, fallbackCount: 0, failed: true };
   }
 
   const offerRows: OfferRow[] = offers.map((o) => ({
     id: o.id as number,
     providerName:
       (o.providers as unknown as { name: string } | null)?.name ?? `Offer ${o.id}`,
+    supported: String(o.provider_id) in ADAPTERS,
   }));
 
   // ALWAYS quote live, at every amount. A comparison that tells you to go and
@@ -168,21 +167,10 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     quotes = [...liveRows, ...stored];
   }
 
-  const { data: mid } = await db
-    .from("mid_rates")
-    .select("rate, collected_at")
-    .eq("corridor_id", corridor.id)
-    .order("collected_at", { ascending: false })
-    .limit(1);
-
-  const midRow = (mid?.[0] as { rate: number; collected_at: string } | undefined) ?? null;
-
   return {
     corridors: list,
     corridor,
     board: buildBoard(offerRows, quotes, amount, now),
-    // The mid-market reference obeys the same staleness rule as everything else.
-    midRate: midRow && isFresh(midRow.collected_at, now) ? midRow : null,
     fallbackCount,
     failed: false,
   };
@@ -194,7 +182,7 @@ export default async function Home(props: PageProps<"/">) {
   const amount = parseAmount(sp.amount);
   const now = Date.now();
 
-  const { corridors, corridor, board, midRate, fallbackCount } = await loadBoard(
+  const { corridors, corridor, board, fallbackCount } = await loadBoard(
     requested ?? DEFAULT_CORRIDOR,
     amount,
     now
@@ -269,20 +257,13 @@ export default async function Home(props: PageProps<"/">) {
             </div>
           </form>
 
-          {midRate && corridor && (
-            <div className="mt-4">
-              {/* Deliberately NOT "just now". collected_at is when we polled,
-                  but the source publishes once a day — showing our poll time
-                  would imply a freshness the number does not have. */}
-              <div className="text-xs text-[#BFD8CC]">
-                Mid-market reference · {MID_RATE_SOURCE.name}, published daily
-              </div>
-              <div className="display tnum text-xl font-bold">
-                $1 = {symbol}
-                {money(midRate.rate, 2)}
-              </div>
-            </div>
-          )}
+          {/* No mid-market strip. It published once a day, so it read ₦1,364
+              while every provider quoted 1376–1389 — a mid below every retail
+              rate looks broken and taught the reader nothing. Removing the
+              display also removes ExchangeRate-API's attribution requirement,
+              which only applies to pages showing their rates. mid_rates is
+              still collected for the §6 alert thresholds; if it is ever
+              surfaced to users again, the attribution must come back with it. */}
         </div>
       </header>
 
@@ -348,7 +329,9 @@ export default async function Home(props: PageProps<"/">) {
                           </div>
                         ) : (
                           <div className="mt-0.5 text-xs text-[#6B7A73]">
-                            No quote in the last 3 hours
+                            {row.reason === "unsupported"
+                              ? "We don't compare this provider yet"
+                              : "Couldn't get a price we can stand behind"}
                           </div>
                         )}
                       </div>
@@ -372,9 +355,19 @@ export default async function Home(props: PageProps<"/">) {
                           </>
                         ) : (
                           <div className="text-sm font-semibold text-[#8A968F]">
-                            Temporarily
-                            <br />
-                            unavailable
+                            {row.reason === "unsupported" ? (
+                              <>
+                                Not
+                                <br />
+                                compared yet
+                              </>
+                            ) : (
+                              <>
+                                Temporarily
+                                <br />
+                                unavailable
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -433,16 +426,7 @@ export default async function Home(props: PageProps<"/">) {
             figure themselves, we show theirs. Where they state nothing, we say
             nothing. Anything we cannot verify in the last 3 hours reads
             &ldquo;temporarily unavailable&rdquo; instead of showing you an old
-            number. Mid-market reference:{" "}
-            <a
-              className="underline"
-              href={MID_RATE_SOURCE.url}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              {MID_RATE_SOURCE.attribution}
-            </a>
-            .
+            number.
           </p>
         </footer>
       </main>
