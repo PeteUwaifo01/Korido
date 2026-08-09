@@ -1,5 +1,80 @@
 # PROGRESS
 
+## Session 3 — 2026-08-09 · LIVE
+
+**Korido is a real product at https://korido.app.** Public, custom domain,
+HTTPS, collecting data unattended. Read this section first; sessions 1–2 below
+are the build history.
+
+**State of the live site**
+- 5 send providers quoted **live on every page load**, every amount: Wise,
+  LemFi, Sendwave, Taptap Send, Xoom. Ranked by amount received.
+- `/airtime` — top-up referral page, **deliberately no prices** (see below).
+- `/privacy`, `/terms`, `/affiliate-disclosure` — spec §7 satisfied.
+- Installable to a phone home screen (manifest + generated icons). Native app
+  stays out of scope per §1; this delivers the part users feel.
+- GitHub Actions collectors running: quotes every 30 min, mid-rates every 15.
+  Archive is accumulating — that is the compounding asset (§10 trigger 2).
+- Zero third-party requests from the browser. No cookies. Fonts self-hosted.
+- 137 offline assertions (`npm test`), `npm run verify:supabase` for setup.
+
+**Infrastructure**
+- GitHub: `PeteUwaifo01/Korido`, public (unmetered Actions).
+- Netlify: auto-deploys from `main`. **15 credits per production deploy against
+  300/month — batch changes, do not deploy per commit.**
+- Porkbun DNS: ALIAS + CNAME → Netlify. **MX untouched**, so `hello@korido.app`
+  still forwards. Never move nameservers without recreating MX first.
+- Supabase: 8 providers, 24 offers (15 active), RLS verified working.
+
+**Affiliate — the revenue path, currently earning nothing**
+- Wise application submitted via Partnerize, partner type **"Comparison
+  Shopping Services"**. No barrier — their guide says they welcome all partners
+  except sub-affiliate networks and coupon sites.
+- Verified contacts (2026-08-09): `partnerwise@wise.com`; LemFi `press@`,
+  `support@`, `complaints@`; Sendwave `help@`. **Taptap Send and Xoom publish
+  none — do not invent addresses.**
+- Drafts in `docs/outreach-emails.md`. Send the affiliate ask and the
+  rate-access ask as **separate emails to different people** — an affiliate
+  manager cannot approve a pricing feed.
+- When a link arrives: `npm run affiliate <provider> <url>`. It refuses any
+  link missing `{subid}`, which would otherwise lose every conversion silently.
+  **Update `/affiliate-disclosure` in the same commit** — it currently states we
+  have no commission arrangements.
+
+**Waiting on Peter**
+1. Finish the Wise application; apply to FlexOffers (covers Sendwave + Rebtel).
+2. Email `press@lemfi.com` — they are top of the Nigeria board, good opener.
+3. Delete the stray `_dmarc` TXT record at Porkbun (contains a hostname; wrong
+   record type, does nothing).
+4. **Rotate `CRON_SECRET`** — it appeared in a screenshot during setup. Low
+   severity (guards collection endpoints only), but do it deliberately.
+
+**Next build priorities — in this order, and the reasoning matters**
+Affiliate income is paid per *funded transfer*, so it is strictly downstream of
+traffic. It cannot bootstrap an audience. The three things that actually bring
+people are all unbuilt:
+1. **WhatsApp rate ticket (§1)** — the growth engine. Peter's seeding plan is
+   literally "forward the rate ticket to community groups". Cheapest item on
+   the list, works at zero users, needs nobody's approval.
+2. **Rate alerts (§6)** — brings people back; day-30 checkpoint measures signups.
+   Remember Resend's real cap is **100 emails/day**, not 3,000/month, so the
+   dispatcher must batch across days.
+3. **Corridor SEO pages (§1)** — slower, compounding.
+
+**Two findings from today worth not relearning**
+- **Deploying found a bug 137 passing tests did not.** Netlify's edge appends
+  the incoming query string to a 302 when the destination has none of its own,
+  leaking `?from=/` to providers. Invisible locally. Argument for shipping early.
+- **Top-up cannot be priced by anyone.** Ding 403s, Recharge.com's robots
+  disallows everything, WorldRemit Airtime is behind PerimeterX, MobileRecharge
+  behind Cloudflare, Reloadly is a seller API (funds perimeter), and LemFi,
+  Taptap and Sendwave do not sell airtime at all. Even Rebtel — the one open
+  door — only reveals prices after a recipient's phone number is submitted, and
+  any number used to probe belongs to a real person. Hence `/airtime` publishes
+  no prices and says why.
+
+---
+
 ## Session 2 — 2026-08-08
 
 **Verified inherited state**
