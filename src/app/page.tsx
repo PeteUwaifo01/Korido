@@ -1,5 +1,6 @@
 import { supabasePublic } from "@/lib/supabase-public";
 import { MID_RATE_SOURCE } from "@/lib/fx/mid-rates";
+import { fetchLiveQuotes, type LiveOffer } from "@/lib/live-quotes";
 import {
   buildBoard,
   isFresh,
@@ -58,6 +59,8 @@ interface BoardData {
   corridor: CorridorRow | null;
   board: Board | null;
   midRate: { rate: number; collected_at: string } | null;
+  /** True when figures came from a live provider call rather than the DB. */
+  live: boolean;
   failed: boolean;
 }
 
@@ -67,6 +70,7 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     corridor: null,
     board: null,
     midRate: null,
+    live: false,
     failed: true,
   };
 
@@ -92,13 +96,13 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
 
   const { data: offers, error: offerErr } = await db
     .from("offers")
-    .select("id, speed_label, providers(name)")
+    .select("id, provider_id, speed_label, providers(name)")
     .eq("vertical_id", "send")
     .eq("corridor_id", corridor.id)
     .eq("active", true);
 
   if (offerErr || !offers) {
-    return { corridors: list, corridor, board: null, midRate: null, failed: true };
+    return { corridors: list, corridor, board: null, midRate: null, live: false, failed: true };
   }
 
   const offerRows: OfferRow[] = offers.map((o) => ({
@@ -108,15 +112,39 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
     speedLabel: (o.speed_label as string | null) ?? null,
   }));
 
-  // Only quotes inside the freshness window are worth fetching. buildBoard
-  // re-checks freshness per row, so this is a bandwidth filter, not the guard.
-  const since = new Date(now - 3 * 60 * 60 * 1000).toISOString();
-  const { data: quotes } = await db
-    .from("quotes")
-    .select("offer_id, collected_at, fx_rate, fee_flat, fee_pct")
-    .in("offer_id", offerRows.map((o) => o.id))
-    .gte("collected_at", since)
-    .order("collected_at", { ascending: false });
+  // Quotes are collected at $200 only. Reusing that snapshot for a different
+  // amount misranks providers (see live-quotes.ts), so any other amount is
+  // quoted live. Nothing on this page is ever extrapolated.
+  const live = amount !== REFERENCE_AMOUNT_USD;
+  let quotes: QuoteRow[];
+
+  if (live) {
+    const liveOffers: LiveOffer[] = offers.map((o) => ({
+      id: o.id as number,
+      providerId: String(o.provider_id),
+    }));
+    quotes = await fetchLiveQuotes(
+      liveOffers,
+      {
+        id: corridor.id,
+        dest_currency: corridor.dest_currency,
+        dest_country: corridor.dest_country,
+      },
+      amount,
+      now
+    );
+  } else {
+    // Only quotes inside the freshness window are worth fetching. buildBoard
+    // re-checks freshness per row, so this is a bandwidth filter, not the guard.
+    const since = new Date(now - 3 * 60 * 60 * 1000).toISOString();
+    const { data } = await db
+      .from("quotes")
+      .select("offer_id, collected_at, fx_rate, fee_flat, fee_pct")
+      .in("offer_id", offerRows.map((o) => o.id))
+      .gte("collected_at", since)
+      .order("collected_at", { ascending: false });
+    quotes = (data ?? []) as unknown as QuoteRow[];
+  }
 
   const { data: mid } = await db
     .from("mid_rates")
@@ -130,9 +158,10 @@ async function loadBoard(corridorId: string, amount: number, now: number): Promi
   return {
     corridors: list,
     corridor,
-    board: buildBoard(offerRows, (quotes ?? []) as unknown as QuoteRow[], amount, now),
+    board: buildBoard(offerRows, quotes, amount, now),
     // The mid-market reference obeys the same staleness rule as everything else.
     midRate: midRow && isFresh(midRow.collected_at, now) ? midRow : null,
+    live,
     failed: false,
   };
 }
@@ -143,7 +172,7 @@ export default async function Home(props: PageProps<"/">) {
   const amount = parseAmount(sp.amount);
   const now = Date.now();
 
-  const { corridors, corridor, board, midRate } = await loadBoard(
+  const { corridors, corridor, board, midRate, live } = await loadBoard(
     requested ?? DEFAULT_CORRIDOR,
     amount,
     now
@@ -342,14 +371,13 @@ export default async function Home(props: PageProps<"/">) {
                 ))}
               </ul>
 
-              {amount !== REFERENCE_AMOUNT_USD && (
-                <p className="text-xs leading-relaxed text-[#8A968F]">
-                  Fees are collected at a ${REFERENCE_AMOUNT_USD} reference amount and
-                  recalculated for yours, so figures away from ${REFERENCE_AMOUNT_USD}{" "}
-                  are estimates. Always confirm the final quote on the provider&apos;s
-                  own page before sending.
-                </p>
-              )}
+              <p className="text-xs leading-relaxed text-[#8A968F]">
+                {live
+                  ? `Quoted live from each provider for $${money(amount, 2)} just now — not scaled from a smaller amount, because fees and rates change with how much you send.`
+                  : `Collected automatically at $${money(amount, 2)}; each row shows when.`}{" "}
+                Providers can change prices at any moment, so confirm the final
+                figure on their own page before you send.
+              </p>
             </>
           )}
         </section>

@@ -59,6 +59,12 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
   auditable back to what the provider actually said.
 - Adapters model what a **US consumer** can actually get — not the cheapest
   line item in a payload they could never use.
+- **Never scale a quote from one amount to another.** Fees and rates move with
+  amount: Wise's fee grows with the send, Sendwave's rate improves above $750.
+  Extrapolating from the $200 collection once ranked Wise *first* at $1,000 when
+  it was actually *last*. Quotes are collected at $200; every other amount is
+  fetched live. If a live fetch fails, the row is unavailable — it must never
+  fall back to a figure collected at a different amount.
 
 ---
 

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify:supabase": "tsx scripts/verify-supabase.ts",
-    "test": "tsx scripts/test-wise-adapter.ts && tsx scripts/test-mid-rates.ts && tsx scripts/test-scraped-adapters.ts && tsx scripts/test-board.ts"
+    "test": "tsx scripts/test-wise-adapter.ts && tsx scripts/test-mid-rates.ts && tsx scripts/test-scraped-adapters.ts && tsx scripts/test-board.ts && tsx scripts/test-live-quotes.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

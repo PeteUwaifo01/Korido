@@ -170,11 +170,27 @@ because of its $4.47 fee. That is the whole argument for ranking on receive
 amount rather than rate — and it is exactly what the session-1 pay-in bug would
 have got wrong, since it would have shown Wise's fee as $8.12.
 
-**Known accuracy gap, now demonstrated:** at $500 the board shows Wise's fee as
-$6.91 — the figure observed at the $200 reference amount. Wise's real fee scales
-with amount, so we understate it as the amount grows. The estimate notice below
-the rows says so plainly, but the honest fix is to collect at two amounts and
-derive a real `fee_pct`. Raising this from "possible follow-up" to a named task.
+**Ranking inversion found and fixed — the board no longer extrapolates.**
+Peter asked why we estimate fees when the providers do not.
+`scripts/amount-sweep.ts` measured it on USD→NGN: Wise's fee scales ($4.47 at
+$200 → $32.48 at $5,000) and Sendwave's *rate* improves above $750
+(1376.06 → 1378.10). LemFi and Taptap are genuinely flat.
+
+The consequence was worse than the percentages. At $1,000 the extrapolated board
+ranked **Wise first** at ₦1,382,403 when it actually delivers ₦1,371,697 and
+finishes **last** — we would have badged the worst provider "BEST RATE" and sent
+the user there. On a money page that is the failure that ends the product.
+
+Fix: `src/lib/live-quotes.ts`. The default $200 view still serves from stored
+quotes (instant, cached, survives provider outages). **Any other amount is
+quoted live from all four providers in parallel** for that exact amount, so
+nothing on the page is ever scaled from a different one. Verified live: at
+$1,000 the board now reads Sendwave ₦1,378,104 (best) → Taptap → LemFi → Wise
+₦1,371,697 with its true $12.18 fee, matching the sweep exactly. Rendered in
+0.85s. A provider that errors or times out (8s ceiling) is simply absent and
+shows "temporarily unavailable" — it never falls back to the stored figure,
+which is the number we know to be wrong. 12 tests in
+`scripts/test-live-quotes.ts` pin that behaviour.
 
 **Still needs live verification**
 - Watch for drift on the scraped adapters: any provider can change payload
@@ -186,8 +202,6 @@ derive a real `fee_pct`. Raising this from "possible follow-up" to a named task.
   displayed reference rate.
 
 **Next steps**
-0. Derive a real `fee_pct` by collecting at two amounts, so figures away from
-   $200 stop being estimates (see the accuracy gap above).
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.
 2. Corridor landing pages for SEO (§1) + WhatsApp rate ticket / OG images.
