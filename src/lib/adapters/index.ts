@@ -2,6 +2,7 @@ import { wiseAdapter } from "./wise";
 import { lemfiAdapter } from "./lemfi";
 import { sendwaveAdapter } from "./sendwave";
 import { taptapAdapter } from "./taptap";
+import { xoomAdapter } from "./xoom";
 import type { QuoteAdapter } from "./types";
 
 // Providers seeded without an adapter (remitly, worldremit, xe) simply produce
@@ -12,4 +13,5 @@ export const ADAPTERS: Record<string, QuoteAdapter> = {
   [lemfiAdapter.providerId]: lemfiAdapter,
   [sendwaveAdapter.providerId]: sendwaveAdapter,
   [taptapAdapter.providerId]: taptapAdapter,
+  [xoomAdapter.providerId]: xoomAdapter,
 };

@@ -310,6 +310,33 @@ the same side of the line as Taptap's `X-Device-Id: web` headers. But it is more
 session-like than anything we do today, so it is named here rather than buried,
 exactly as LemFi's encoded rate was.
 
+**Xoom added (5th provider); Ria refused. Plus a fee-model bug found and fixed.**
+
+- **Xoom (PayPal) is live** — `src/lib/adapters/xoom.ts`. Its public corridor
+  pages hand every anonymous visitor a CSRF token; `POST
+  /wapi/guest-app/remittance` then returns real pricing. No login, no bot
+  challenge. The first attempt got a 406; adding **truthful** `Origin`/`Referer`
+  (we really had just loaded that page) fixed it, with our own UA throughout —
+  no browser impersonation. Verified live on NG/GH/KE via ACH at $0 fee.
+  Xoom currently ranks last on US→NG at ₦270,848, which is exactly why adding
+  it matters. 13 fixture tests. `0003_add_xoom.sql`, applied.
+  *Cost note:* Xoom needs two round trips (page for the token, then the quote),
+  so a cache miss takes ~2s. The 60s live-quote cache absorbs it; caching the
+  token per corridor would remove it if that ever matters.
+- **Ria refused.** `public.riamoneytransfer.com` resets the TCP connection on
+  every request from a non-browser client — three attempts, curl and Node
+  alike, while their marketing site loads fine. That is a WAF dropping us at
+  the network layer, so Ria joins Remitly, WorldRemit and Xe.
+- **Fee-model bug, found while building Xoom.** Providers split into two camps:
+  Wise **deducts** its fee from what you send, while Xoom and Sendwave **add**
+  it on top (Sendwave shows `payAmount 200.49` on a $200 send with a $0.49
+  fee). So an added-fee provider's *stated* receive figure describes a spend of
+  amount + fee — publishing it against Wise would compare a bigger budget with
+  a smaller one and flatter the wrong provider. Adapters now withhold the
+  stated figure whenever the fee is non-zero under the added model, and the
+  board computes `(amount − fee) × rate`, which holds the spend at exactly what
+  the user typed. Fixed in both `sendwave.ts` and the new `xoom.ts`.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.

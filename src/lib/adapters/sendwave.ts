@@ -109,13 +109,19 @@ export const sendwaveAdapter: QuoteAdapter = {
       return { available: false, reason: `unusable baseFeeRateBps for ${corridor.id}`, raw: data };
     }
 
-    // Sendwave states `receiveAmount`, but it reflects the *effective* price —
-    // promo campaigns included. We publish the standing (base) price, so the
-    // stated figure is only usable when no campaign is in play. With one
-    // active, fall back to computing from base rather than silently quoting a
-    // new-customer promo as the standard rate.
+    // Sendwave's stated `receiveAmount` is only safe under two conditions.
+    //
+    // 1. No promo campaign — it reflects the *effective* (promo-inclusive)
+    //    price, and we publish the standing rate.
+    // 2. Zero fee — Sendwave ADDS its fee on top of the send amount (a $200
+    //    send with a $0.49 fee shows payAmount 200.49), so its stated receive
+    //    describes a $200.49 spend. Publishing that against Wise, which deducts
+    //    its fee from the $200, would compare a bigger budget with a smaller
+    //    one and flatter Sendwave. With a fee present, let the board compute
+    //    (amount − fee) × rate, which holds the spend at exactly $200.
     const campaigned = Array.isArray(data.campaignsApplied) && data.campaignsApplied.length > 0;
-    const stated = typeof data.receiveAmount === "number" ? data.receiveAmount : null;
+    const stated =
+      typeof data.receiveAmount === "number" && fee === 0 ? data.receiveAmount : null;
 
     return {
       available: true,

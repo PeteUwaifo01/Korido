@@ -9,6 +9,7 @@
 import { lemfiAdapter, decodeRate } from "../src/lib/adapters/lemfi";
 import { sendwaveAdapter } from "../src/lib/adapters/sendwave";
 import { taptapAdapter, resolveFee } from "../src/lib/adapters/taptap";
+import { xoomAdapter, pickPricing } from "../src/lib/adapters/xoom";
 import type { Corridor } from "../src/lib/adapters/types";
 
 const NG: Corridor = { id: "US-NG", dest_currency: "NGN", dest_country: "NG" };
@@ -237,6 +238,82 @@ async function taptap() {
   check("network error → unavailable with reason", down.available === false && down.reason.includes("ECONNREFUSED"));
 }
 
+// ————————————————————————————————— Xoom
+
+// Shape observed live 2026-08-09 on US→NG. Every option reports the SAME
+// receiveAmount and differs only in feeAmount — Xoom adds its fee on top.
+const xoomPricing = [
+  { disbursementType: "DEPOSIT", paymentType: { type: "CRYPTO_PYUSD" }, validations: [], fxRate: { rate: "1354.2391" }, feeAmount: { rawValue: "0.0000" }, receiveAmount: { rawValue: "270847.82" } },
+  { disbursementType: "DEPOSIT", paymentType: { type: "PAYPAL_BALANCE" }, validations: [], fxRate: { rate: "1354.2391" }, feeAmount: { rawValue: "0.0000" }, receiveAmount: { rawValue: "270847.82" } },
+  { disbursementType: "DEPOSIT", paymentType: { type: "ACH" }, validations: [], fxRate: { rate: "1354.2391" }, feeAmount: { rawValue: "0.0000" }, receiveAmount: { rawValue: "270847.82" } },
+  { disbursementType: "DEPOSIT", paymentType: { type: "DEBIT_CARD" }, validations: [], fxRate: { rate: "1354.2391" }, feeAmount: { rawValue: "0.59" }, receiveAmount: { rawValue: "270847.82" } },
+  // Cash pickup carries a visibly worse rate — must not win on rate alone.
+  { disbursementType: "PICKUP", paymentType: { type: "ACH" }, validations: [], fxRate: { rate: "1327.1543" }, feeAmount: { rawValue: "0.0000" }, receiveAmount: { rawValue: "265430.86" } },
+];
+
+function xoomFetch(pricing: unknown, opts: { csrf?: boolean; pageStatus?: number; quoteStatus?: number } = {}): typeof fetch {
+  const { csrf = true, pageStatus = 200, quoteStatus = 200 } = opts;
+  return (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    if (url.includes("/send-money")) {
+      const body = csrf ? '<script>{\\"csrf\\":\\"tok_abc123\\",\\"baseUrl\\":\\"/wapi/guest-app\\"}</script>' : "<html>no token</html>";
+      return new Response(body, { status: pageStatus, headers: { "Content-Type": "text/html" } });
+    }
+    return new Response(JSON.stringify({ quote: { pricing } }), {
+      status: quoteStatus,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+}
+
+async function xoom() {
+  console.log("\nXoom");
+
+  const ok = await xoomAdapter.fetchQuote(NG, 200, xoomFetch(xoomPricing));
+  check("picks a consumer funding method, not crypto or PayPal balance",
+    ok.available && ok.pay_in === "ACH", ok);
+  check("picks bank deposit over the worse cash-pickup rate",
+    ok.available && ok.fx_rate === 1354.2391, ok);
+  check("zero-fee option → publishes Xoom's own stated receive amount",
+    ok.available && ok.receive === 270847.82, ok);
+
+  check("pickPricing ranks on money delivered, not on headline rate",
+    pickPricing(xoomPricing, 200)?.option.paymentType?.type === "ACH");
+  check("pickPricing skips options carrying validations",
+    pickPricing([{ ...xoomPricing[2], validations: [{ message: "unavailable" }] }], 200) === null);
+  check("pickPricing rejects a payload with only crypto/balance funding",
+    pickPricing(xoomPricing.slice(0, 2), 200) === null);
+
+  // A fee-bearing option must NOT publish Xoom's stated receive: that figure
+  // assumes the sender paid amount + fee, a bigger budget than they typed.
+  const feeOnly = await xoomAdapter.fetchQuote(
+    NG, 200,
+    xoomFetch([{ ...xoomPricing[3], feeAmount: { rawValue: "2.50" } }])
+  );
+  check("fee-bearing option → stated receive withheld, board computes instead",
+    feeOnly.available && feeOnly.receive === null && feeOnly.fee_flat === 2.5, feeOnly);
+
+  const noToken = await xoomAdapter.fetchQuote(NG, 200, xoomFetch(xoomPricing, { csrf: false }));
+  check("missing CSRF token → unavailable (page layout changed)", noToken.available === false, noToken);
+
+  const pageDown = await xoomAdapter.fetchQuote(NG, 200, xoomFetch(xoomPricing, { pageStatus: 503 }));
+  check("corridor page down → unavailable", pageDown.available === false, pageDown);
+
+  const quoteDown = await xoomAdapter.fetchQuote(NG, 200, xoomFetch(xoomPricing, { quoteStatus: 406 }));
+  check("quote endpoint refuses → unavailable", quoteDown.available === false, quoteDown);
+
+  const empty = await xoomAdapter.fetchQuote(NG, 200, xoomFetch([]));
+  check("no pricing options → unavailable", empty.available === false, empty);
+
+  const unknownCorridor = await xoomAdapter.fetchQuote(
+    { id: "US-ZZ", dest_currency: "ZZZ", dest_country: "ZZ" }, 200, xoomFetch(xoomPricing)
+  );
+  check("corridor Xoom has no page for → unavailable", unknownCorridor.available === false, unknownCorridor);
+
+  const down = await xoomAdapter.fetchQuote(NG, 200, throwingFetch);
+  check("network error → unavailable with reason", down.available === false && down.reason.includes("ECONNREFUSED"));
+}
+
 // ————————————————————————————————— live smoke
 
 async function live() {
@@ -246,7 +323,7 @@ async function live() {
     { id: "US-GH", dest_currency: "GHS", dest_country: "GH" },
     { id: "US-KE", dest_currency: "KES", dest_country: "KE" },
   ];
-  for (const adapter of [lemfiAdapter, sendwaveAdapter, taptapAdapter]) {
+  for (const adapter of [lemfiAdapter, sendwaveAdapter, taptapAdapter, xoomAdapter]) {
     for (const c of corridors) {
       const q = await adapter.fetchQuote(c, 200);
       if (q.available) {
@@ -263,6 +340,7 @@ async function live() {
   await lemfi();
   await sendwave();
   await taptap();
+  await xoom();
   if (process.argv.includes("--live")) await live();
   if (failures > 0) process.exit(1);
   console.log("\nAll offline tests passed.");

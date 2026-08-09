@@ -435,11 +435,11 @@ export default async function Home(props: PageProps<"/">) {
           </p>
           <p className="mt-2">
             <strong className="font-semibold">What we don&apos;t cover.</strong>{" "}
-            We compare Wise, LemFi, Sendwave and Taptap Send, because each
-            publishes prices we can read openly. Remitly, WorldRemit and Xe do
-            not, so we leave them out rather than guess — another provider may
-            beat the winner above. We&apos;ll add them if they give us access to
-            real prices.
+            We compare Wise, LemFi, Sendwave, Taptap Send and Xoom, because each
+            publishes prices we can read openly. Remitly, WorldRemit, Ria, Xe,
+            Western Union and MoneyGram do not, so we leave them out rather than
+            guess — one of them may beat the winner above. We&apos;ll add any of
+            them the moment they give us access to real prices.
           </p>
         </footer>
       </main>

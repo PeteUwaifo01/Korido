@@ -20,7 +20,21 @@ export type AdapterResult =
       // Figures the provider STATES rather than ones we derive. Prefer these
       // wherever they exist: if our arithmetic ever disagrees with the
       // provider's own number, the provider is right by definition.
-      /** Receive amount as published by the provider, for this exact send amount. */
+      /**
+       * Receive amount as published by the provider — but ONLY set this when it
+       * corresponds to a total spend of exactly `sourceAmountUsd`.
+       *
+       * Providers use two different fee models:
+       *   deducted — Wise: you pay the amount, they take the fee out of it, and
+       *              the recipient gets (amount − fee) × rate.
+       *   added    — Xoom, Sendwave: you pay amount + fee, and the recipient
+       *              gets amount × rate.
+       *
+       * The board holds "what you pay" constant so providers are comparable, so
+       * an added-fee provider's stated figure describes a bigger spend than the
+       * user budgeted and must not be published. Leave this null whenever the
+       * fee is non-zero under the "added" model and let the board compute.
+       */
       receive?: number | null;
       /** The provider's own delivery estimate, verbatim ("in 30 minutes", "by Mon").
        *  Null when the provider does not publish one — we then say nothing rather

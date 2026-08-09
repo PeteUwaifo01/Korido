@@ -71,6 +71,13 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
   provider's *public website* makes, with our own honest UA, is fine; getting
   past something built to stop us is not. Deactivate the provider instead and
   pursue partner access (spec §8, week 3).
+- **Providers use two fee models; hold the sender's spend constant.** Wise
+  *deducts* its fee from the amount you send. Xoom and Sendwave *add* it on top,
+  so their stated receive figure assumes a spend of amount + fee. Never publish
+  an added-fee provider's stated receive when the fee is non-zero — compute
+  `(amount − fee) × rate` instead, which keeps every row priced at the same
+  budget. Comparing a bigger spend against a smaller one flatters the wrong
+  provider.
 - **Prefer what the provider states over anything we derive.** Wise publishes
   `targetAmount` and a delivery estimate; Sendwave publishes `receiveAmount`.
   Where a provider states a figure, show theirs — if our arithmetic ever
