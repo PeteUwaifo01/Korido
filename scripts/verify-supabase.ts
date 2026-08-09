@@ -49,11 +49,11 @@ function check(name: string, cond: boolean, detail?: unknown) {
   for (const [table, expected] of [
     ["verticals", 3],
     ["corridors", 3],
-    ["providers", 7],
-    // 4 priceable providers × 3 corridors. The other 3 providers stay in the
+    ["providers", 8],
+    // 5 priceable providers × 3 corridors. The other 3 providers stay in the
     // catalog but their offers are inactive (0002), and the anon policy is
-    // "public read active" — so seeing 12 here also proves that filter works.
-    ["offers", 12],
+    // "public read active" — so seeing 15 here also proves that filter works.
+    ["offers", 15],
   ] as const) {
     const { count, error } = await anon.from(table).select("*", { count: "exact", head: true });
     check(`${table}: ${count ?? "?"} rows (expected ${expected})`, !error && count === expected, error?.message);
@@ -62,7 +62,7 @@ function check(name: string, cond: boolean, detail?: unknown) {
   const { count: allOffers } = await admin.from("offers").select("*", { count: "exact", head: true });
   check(
     `deactivated offers are hidden from the public key, not deleted (${allOffers} total)`,
-    allOffers === 21
+    allOffers === 24
   );
 
   for (const table of ["quotes", "mid_rates", "clicks", "conversions", "alert_subscribers", "alerts"]) {
