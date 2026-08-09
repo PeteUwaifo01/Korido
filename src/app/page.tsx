@@ -198,8 +198,13 @@ export default async function Home(props: PageProps<"/">) {
           <div className="display text-2xl font-extrabold tracking-tight">
             Korido<span className="text-mango">.</span>
           </div>
+          {/* Not "every way" — we price four providers. Claiming the whole
+              market while showing part of it is the same class of error as a
+              wrong rate: technically every figure is true, and the reader still
+              walks away believing something false. */}
           <p className="mt-1 text-sm text-[#BFD8CC]">
-            Every way to send money home — compared.
+            Live prices from the providers we can verify — ranked by what
+            actually arrives.
           </p>
 
           {corridors.length > 0 && (
@@ -427,6 +432,14 @@ export default async function Home(props: PageProps<"/">) {
             nothing. Anything we cannot verify in the last 3 hours reads
             &ldquo;temporarily unavailable&rdquo; instead of showing you an old
             number.
+          </p>
+          <p className="mt-2">
+            <strong className="font-semibold">What we don&apos;t cover.</strong>{" "}
+            We compare Wise, LemFi, Sendwave and Taptap Send, because each
+            publishes prices we can read openly. Remitly, WorldRemit and Xe do
+            not, so we leave them out rather than guess — another provider may
+            beat the winner above. We&apos;ll add them if they give us access to
+            real prices.
           </p>
         </footer>
       </main>

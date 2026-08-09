@@ -59,6 +59,18 @@ A wrong rate on a money page is a consumer-harm problem, not a cosmetic bug.
   auditable back to what the provider actually said.
 - Adapters model what a **US consumer** can actually get — not the cheapest
   line item in a payload they could never use.
+- **Only list a provider we can actually price.** A permanently empty row reads
+  as either our site being broken or the provider being down, and neither is
+  true. If a provider cannot be priced with integrity, set `offers.active =
+  false` and say so on the page — see the "What we don't cover" note. Never
+  imply we cover the whole market: showing four providers under a claim of
+  "every way to send money" is a false impression built from true numbers.
+- **A refusal is an answer.** `429`, a bot-detection gate, or a login wall means
+  no. Do not work around it by impersonating a provider's own app, forging
+  headers we were not given, or defeating a challenge. Reproducing a call a
+  provider's *public website* makes, with our own honest UA, is fine; getting
+  past something built to stop us is not. Deactivate the provider instead and
+  pursue partner access (spec §8, week 3).
 - **Prefer what the provider states over anything we derive.** Wise publishes
   `targetAmount` and a delivery estimate; Sendwave publishes `receiveAmount`.
   Where a provider states a figure, show theirs — if our arithmetic ever

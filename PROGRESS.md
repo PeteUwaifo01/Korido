@@ -257,6 +257,35 @@ the default display.
   footer says what the site is for: live quotes, ranked by what actually lands,
   provider-stated figures preferred, silence where they publish nothing.
 
+**Remitly, WorldRemit and Xe removed — cannot be priced with integrity**
+Peter: *"If they don't provide adapters, if you're going to build the adapters,
+why did you not do it? ... If we cannot truly reach out, then remove them."*
+Investigated all three on 2026-08-09. Each fails differently, and none can be
+solved without misrepresenting who we are:
+
+- **Remitly** — `api.remitly.io/v3/calculator/estimate` is real and public, but
+  returns **429 NOT_ALLOWED** to unrecognised clients after a few requests.
+  That is their server refusing us. Probing stopped immediately.
+- **WorldRemit** — the calculator is behind a **PerimeterX bot check** ("Click
+  and hold to help us verify you"). An access control, not a public price list.
+- **Xe** — no public transfer-pricing surface. Their open converter is the
+  **mid-market** rate, not Xe's offer (which carries their margin), so
+  publishing it as Xe's price would be inventing a number. `robots.txt` also
+  disallows `/currencytransfers/`.
+
+`0002_deactivate_unreachable_offers.sql` sets `offers.active = false` for the
+three (applied to the live DB; 12 active offers remain, 9 inactive).
+Deactivated, not deleted — `active` is the reversible switch, and spec §8 week 3
+already includes direct outreach to provider partner contacts. If any grants
+access, flip the flag and write the adapter.
+
+**Removing them created a second honesty problem, also fixed.** The tagline
+said "Every way to send money home — compared" while showing four providers.
+Every figure would have been true and the reader would still have walked away
+believing something false. The header now reads "Live prices from the providers
+we can verify", and the footer carries a "What we don't cover" note naming the
+three and why. Naming the boundary is worth more than hiding it.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.
