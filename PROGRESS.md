@@ -363,6 +363,41 @@ Privacy/ToS that §7 already defers to post-trial (~$300, once commissions
 clear). These pages are written to be handed to that attorney as a starting
 point, not to replace them.
 
+**SHIPPED — https://korido.netlify.app (2026-08-09)**
+Peter's push-back was the right one: *"we do not have an MVP yet and you are
+talking about live."* Correct — everything ran on localhost. Deployment, not
+more features, was the gap. Fixed:
+
+- **GitHub:** `github.com/PeteUwaifo01/Korido`, public (so Actions minutes are
+  unmetered). Secret audit before the first push: `.env.local` never committed,
+  no key-shaped strings across all 67 paths in history.
+- **Netlify:** connected to the repo, five env vars set, auto-deploy on push.
+  Chosen over Cloudflare *for getting live*: zero new dependencies, zero config,
+  and Peter already had the account. The 15-credits-per-deploy ceiling is real,
+  so batch changes into fewer pushes; move to Cloudflare if it bites.
+- **GitHub Actions secrets** (`CRON_SECRET`, `APP_URL`) set via `gh`; both
+  workflows registered and active.
+
+Verified in production: all three corridors, both legal-page routes, live
+quoting at $1,000 (Sendwave first, Wise last at its true $12.18 fee, "Arrives by
+Mon"), `/go/` logging clicks with landing paths, cron endpoints returning 401 to
+unauthenticated callers, no third-party hosts, sub-second loads.
+
+**A bug only deployment could reveal.** Netlify's edge appends the incoming
+query string to our 302 whenever the destination has none of its own, so
+`?from=/` leaked onto provider URLs. Locally the redirect is clean, so this was
+invisible until the site was live. Blast radius measured before changing
+anything: with a query-bearing affiliate URL the Location came through clean, so
+attribution was never at risk. Fixed by dropping the query parameter entirely —
+the board's links are same-origin, so the Referer carries the landing path
+anyway — and the Referer is now origin-checked so an external site cannot write
+arbitrary values into the click log.
+
+**Outstanding:** `CRON_SECRET` matches on Netlify but the running build predates
+it, so a redeploy is needed before the collectors authenticate. Also: point
+korido.app at the site, and rotate `CRON_SECRET` (it appeared in a screenshot
+during setup — low severity, it only guards collection endpoints).
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.
