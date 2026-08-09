@@ -286,6 +286,30 @@ believing something false. The header now reads "Live prices from the providers
 we can verify", and the footer carries a "What we don't cover" note naming the
 three and why. Naming the boundary is worth more than hiding it.
 
+**Candidate sweep for more send providers — 2026-08-09**
+Peter: *"there must be others we can add, how about rebtel?"* Swept ten
+candidates for a publicly readable price surface, checking robots.txt and
+fingerprinting bot-protection (PerimeterX / DataDome / Cloudflare challenge /
+Akamai / reCAPTCHA / Imperva) before probing anything.
+
+| Provider | Verdict |
+|---|---|
+| **Xoom** (PayPal) | **Best candidate.** No bot guard. Guest calculator API at `xoom.com/wapi/guest-app`, with a CSRF token handed to every anonymous visitor in the page HTML. One judgement call — see below. |
+| **Ria** | **Promising.** No bot guard. The corridor page embeds a quote object, but the SSR copy is a placeholder (`exchangeRate: 18.7994` for NGN, `amountTo: 0`, `feeKnown: false`) — obviously not a real price, so the live endpoint still needs finding. Must never publish that placeholder. |
+| Chipper Cash, Grey, Paysend | No guard detected, app-first products; need deeper investigation. |
+| Afriex | reCAPTCHA present on the page. |
+| **Western Union** | Akamai bot protection. No. |
+| **MoneyGram** | robots.txt **disallows everything**, plus Cloudflare challenge + reCAPTCHA. No. |
+| **Nala** | robots.txt **disallows everything**. No. |
+| **Rebtel** | Not a remittance provider at all — international calling plus mobile recharge. Belongs to the top-up vertical, not send. |
+
+**Xoom judgement call, for Peter.** Their guest API needs a CSRF token, which
+means fetching the page first and reusing the token it gives every anonymous
+visitor. That is reproducing the public guest flow, not defeating a control —
+the same side of the line as Taptap's `X-Device-Id: web` headers. But it is more
+session-like than anything we do today, so it is named here rather than buried,
+exactly as LemFi's encoded rate was.
+
 **Next steps**
 1. Rate alerts (§6): double opt-in via Resend + threshold checker cron.
    Remember Resend's cap is **100 emails/day**, so the dispatcher must batch.
